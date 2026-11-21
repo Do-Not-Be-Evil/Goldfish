@@ -1,6 +1,5 @@
 using Goldfish.Domain.Abstractions;
 using Goldfish.Domain.Policies;
-using Goldfish.Domain.Products;
 using Goldfish.Domain.Quotes;
 using Goldfish.Infrastructure.Persistence.Pricing;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +9,6 @@ namespace Goldfish.Infrastructure.Persistence;
 public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : DbContext(options), IUnitOfWork
 {
-    public DbSet<Product> Products => Set<Product>();
     public DbSet<Policy> Policies => Set<Policy>();
     public DbSet<Quote> Quotes => Set<Quote>();
 
