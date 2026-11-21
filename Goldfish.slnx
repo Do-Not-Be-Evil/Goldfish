@@ -5,4 +5,8 @@
     <Project Path="src/Goldfish.Domain/Goldfish.Domain.csproj" />
     <Project Path="src/Goldfish.Infrastructure/Goldfish.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Goldfish.Domain.Tests/Goldfish.Domain.Tests.csproj" />
+    <Project Path="tests/Goldfish.IntegrationTests/Goldfish.IntegrationTests.csproj" />
+  </Folder>
 </Solution>

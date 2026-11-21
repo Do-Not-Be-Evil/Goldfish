@@ -1,6 +1,11 @@
+using Goldfish.Application.Pricing.GetActiveVersion;
 using Goldfish.Domain.Abstractions;
+using Goldfish.Domain.Policies;
+using Goldfish.Domain.Pricing;
 using Goldfish.Domain.Products;
+using Goldfish.Domain.Quotes;
 using Goldfish.Infrastructure.Persistence;
+using Goldfish.Infrastructure.Pricing;
 using Goldfish.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +27,10 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IPolicyRepository, PolicyRepository>();
+        services.AddScoped<IQuoteRepository, QuoteRepository>();
+        services.AddScoped<IPricingRuleReader, SqlPricingRuleReader>();
+        services.AddScoped<IPricingStatusReader, SqlPricingStatusReader>();
 
         return services;
     }

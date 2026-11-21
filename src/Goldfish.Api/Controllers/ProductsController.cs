@@ -1,12 +1,14 @@
+using Goldfish.Api.Extensions;
 using Goldfish.Application.Products;
 using Goldfish.Application.Products.CreateProduct;
 using Goldfish.Application.Products.GetProductById;
-using Goldfish.Domain.Products;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Goldfish.Api.Controllers;
 
 [ApiController]
+[AllowAnonymous]
 [Route("api/products")]
 public sealed class ProductsController : ControllerBase
 {
@@ -20,9 +22,7 @@ public sealed class ProductsController : ControllerBase
     {
         var result = await handler.HandleAsync(new GetProductByIdQuery(id), cancellationToken);
 
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : Problem(statusCode: StatusCodes.Status404NotFound, title: result.Error.Code, detail: result.Error.Description);
+        return result.IsSuccess ? Ok(result.Value) : this.ToProblem(result.Error);
     }
 
     [HttpPost]
@@ -37,7 +37,7 @@ public sealed class ProductsController : ControllerBase
 
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value)
-            : Problem(statusCode: StatusCodes.Status400BadRequest, title: result.Error.Code, detail: result.Error.Description);
+            : this.ToProblem(result.Error);
     }
 }
 

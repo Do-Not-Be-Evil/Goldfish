@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>goldfish-api-7d3f2c1e</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

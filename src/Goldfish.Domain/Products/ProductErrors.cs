@@ -5,11 +5,11 @@ namespace Goldfish.Domain.Products;
 public static class ProductErrors
 {
     public static readonly Error NotFound =
-        new("Product.NotFound", "The product with the specified identifier was not found.");
+        Error.NotFound("Product.NotFound", "The product with the specified identifier was not found.");
 
     public static readonly Error InvalidName =
-        new("Product.InvalidName", $"Name is required and must be at most {Product.NameMaxLength} characters.");
+        Error.Validation("Product.InvalidName", $"Name is required and must be at most {Product.NameMaxLength} characters.");
 
     public static readonly Error InvalidPrice =
-        new("Product.InvalidPrice", "Price cannot be negative.");
+        Error.Validation("Product.InvalidPrice", "Price cannot be negative.");
 }

@@ -1,16 +1,55 @@
-@Goldfish.Api_HostAddress = http://localhost:5169
+# Manual requests for the Goldfish API. Keys are sent only over HTTPS.
+# Set apiKey to a development key whose SHA-256 hash is in user secrets (see docs/pricing-rules.md).
+@host = https://localhost:7258
+@apiKey = replace-with-a-development-key
+@policyId = 00000000-0000-0000-0000-000000000000
+@etag = "AAAAAAAAAAA="
+@quoteId = 00000000-0000-0000-0000-000000000000
 
-POST {{Goldfish.Api_HostAddress}}/api/products
+### Create a policy (policies:write). Copy the returned id and ETag header.
+POST {{host}}/api/policies
+X-Api-Key: {{apiKey}}
+Content-Type: application/json
+
+{
+  "policyType": "Commercial",
+  "coverageLimit": 2000000,
+  "basePrice": 1234.57
+}
+
+### Get a policy (policies:read)
+GET {{host}}/api/policies/{{policyId}}
+X-Api-Key: {{apiKey}}
+
+### Update a policy (policies:write). If-Match must be the current ETag; a stale one returns 412.
+PUT {{host}}/api/policies/{{policyId}}
+X-Api-Key: {{apiKey}}
+If-Match: {{etag}}
+Content-Type: application/json
+
+{
+  "policyType": "Commercial",
+  "coverageLimit": 2000000,
+  "basePrice": 1300.00
+}
+
+### Request a quote (quotes:create). CUJ 1 expects final price 1851.86 with the initial rule set.
+POST {{host}}/api/policies/{{policyId}}/quotes
+X-Api-Key: {{apiKey}}
+
+### Read a saved quote (quotes:read)
+GET {{host}}/api/quotes/{{quoteId}}
+X-Api-Key: {{apiKey}}
+
+### Active pricing version (pricing:read)
+GET {{host}}/api/pricing/active-version
+X-Api-Key: {{apiKey}}
+
+### Sample products endpoint (anonymous)
+POST {{host}}/api/products
 Content-Type: application/json
 
 {
   "name": "Goldfish food",
   "price": 4.99
 }
-
-###
-
-GET {{Goldfish.Api_HostAddress}}/api/products/{{id}}
-Accept: application/json
-
-###

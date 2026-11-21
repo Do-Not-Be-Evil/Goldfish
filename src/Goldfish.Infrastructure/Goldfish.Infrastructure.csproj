@@ -1,6 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Goldfish.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Goldfish.Application\Goldfish.Application.csproj" />
     <ProjectReference Include="..\Goldfish.Domain\Goldfish.Domain.csproj" />
   </ItemGroup>
