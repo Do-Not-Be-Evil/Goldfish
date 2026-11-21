@@ -1,0 +1,28 @@
+using Goldfish.Domain.Abstractions;
+using Goldfish.Domain.Products;
+using Goldfish.Infrastructure.Persistence;
+using Goldfish.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Goldfish.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("Database")
+            ?? throw new InvalidOperationException("Connection string 'Database' is not configured.");
+
+        services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+
+        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IProductRepository, ProductRepository>();
+
+        return services;
+    }
+}

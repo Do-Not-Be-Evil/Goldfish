@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Goldfish.Api/Goldfish.Api.csproj" />
+    <Project Path="src/Goldfish.Application/Goldfish.Application.csproj" />
+    <Project Path="src/Goldfish.Domain/Goldfish.Domain.csproj" />
+    <Project Path="src/Goldfish.Infrastructure/Goldfish.Infrastructure.csproj" />
+  </Folder>
+</Solution>

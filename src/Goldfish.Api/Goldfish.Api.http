@@ -1,0 +1,16 @@
+@Goldfish.Api_HostAddress = http://localhost:5169
+
+POST {{Goldfish.Api_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Goldfish food",
+  "price": 4.99
+}
+
+###
+
+GET {{Goldfish.Api_HostAddress}}/api/products/{{id}}
+Accept: application/json
+
+###
