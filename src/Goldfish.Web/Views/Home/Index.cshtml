@@ -1,36 +1,117 @@
 @model HomeViewModel
 @{
     ViewData["Title"] = "Start";
-    var pricing = User.IsInRole(WebRoles.Analyst) || User.IsInRole(WebRoles.Manager);
+    var analyst = User.IsInRole(WebRoles.Analyst);
+    var manager = User.IsInRole(WebRoles.Manager);
+    var editor = User.IsInRole(WebRoles.PolicyEditor);
+    var pricing = analyst || manager;
+    var firstName = (User.Identity?.Name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
 }
-<h1>Goldfish pricing</h1>
 
-<div class="cards">
-    <section class="card">
-        <h2>Live rule version</h2>
+<section class="home-hero" aria-labelledby="home-title">
+    <div class="home-hero__text">
+        <p class="home-hero__eyebrow">Commercial pricing workspace</p>
+        <h1 id="home-title">@(string.IsNullOrEmpty(firstName) ? "Welcome" : $"Welcome back, {firstName}")</h1>
+        <p class="home-hero__lead">
+            Manage policy terms and the pricing rules that rate every quote.
+            Changes to live pricing go through review and manager approval before they publish.
+        </p>
+    </div>
+    <div class="home-hero__actions">
+        @if (manager && Model.AwaitingApproval > 0)
+        {
+            <a class="button primary" asp-page="/Changes/Index">Review @Model.AwaitingApproval pending approval@(Model.AwaitingApproval == 1 ? "" : "s")</a>
+        }
+        else if (pricing)
+        {
+            <a class="button primary" asp-page="/Changes/Index">Go to pricing changes</a>
+        }
+        @if (editor)
+        {
+            <a class="button" asp-controller="Policies" asp-action="Create">New policy</a>
+        }
+        <a class="button" asp-controller="Policies" asp-action="Index">Browse policies</a>
+    </div>
+</section>
+
+<section class="home-kpis" aria-label="Summary">
+    <article class="kpi kpi--live">
+        <h2 class="kpi__label">Live pricing rules</h2>
         @if (Model.ActiveVersion is { } v)
         {
-            <p class="big">Version @v.VersionNumber</p>
-            <p class="meta">@v.ChangeTicketRef · published @v.PublishedOnUtc.ToString("yyyy-MM-dd HH:mm") UTC</p>
+            <p class="kpi__value">Version @v.VersionNumber</p>
+            <p class="kpi__meta">Published @v.PublishedOnUtc.ToString("d MMM yyyy, HH:mm") UTC</p>
+            <p class="kpi__meta">Change ref <code>@v.ChangeTicketRef</code></p>
         }
         else
         {
-            <p class="warning">@(Model.ActiveVersionProblem ?? "No version has been published.")</p>
+            <p class="kpi__value kpi__value--empty">Not published</p>
+            <p class="kpi__meta">@(Model.ActiveVersionProblem ?? "No rule version has been published yet.")</p>
         }
-    </section>
-
-    <section class="card">
-        <h2>Policies</h2>
-        <p>Policy types, coverage limits and base prices.</p>
-        <p><a class="button" asp-controller="Policies" asp-action="Index">Open policies</a></p>
-    </section>
+    </article>
 
     @if (pricing)
     {
-        <section class="card">
-            <h2>Pricing changes</h2>
-            <p><strong>@Model.AwaitingApproval</strong> awaiting approval · <strong>@Model.OpenChangeRequests</strong> drafts</p>
-            <p><a class="button" asp-page="/Changes/Index">Open pricing changes</a></p>
-        </section>
+        <article class="kpi @(Model.AwaitingApproval > 0 ? "kpi--attention" : "")">
+            <h2 class="kpi__label">Awaiting approval</h2>
+            <p class="kpi__value">@Model.AwaitingApproval</p>
+            <p class="kpi__meta">@(manager ? "Submitted changes you can review" : "Submitted changes waiting for a manager")</p>
+            <a class="kpi__link" asp-page="/Changes/Index">View queue</a>
+        </article>
+
+        <article class="kpi">
+            <h2 class="kpi__label">Drafts in progress</h2>
+            <p class="kpi__value">@Model.OpenChangeRequests</p>
+            <p class="kpi__meta">Drafts and rejected changes not yet resubmitted</p>
+            <a class="kpi__link" asp-page="/Changes/Index">View drafts</a>
+        </article>
     }
-</div>
+</section>
+
+<section class="home-panels">
+    <article class="panel">
+        <header class="panel__header">
+            <svg class="panel__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" /></svg>
+            <h2>Policies</h2>
+        </header>
+        <p>Policy types, coverage limits and base prices that pricing rules apply to.</p>
+        <ul class="panel__list">
+            <li><a asp-controller="Policies" asp-action="Index">All policies</a></li>
+            <li><a asp-controller="Policies" asp-action="Index" asp-route-type="Commercial">Commercial policies</a></li>
+            <li><a asp-controller="Policies" asp-action="Index" asp-route-type="Personal">Personal policies</a></li>
+            @if (editor)
+            {
+                <li><a asp-controller="Policies" asp-action="Create">Create a policy</a></li>
+            }
+        </ul>
+    </article>
+
+    @if (pricing)
+    {
+        <article class="panel">
+            <header class="panel__header">
+                <svg class="panel__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5V3Zm9 1.5V8h3.5L14 4.5ZM8 12h8v1.5H8V12Zm0 3.5h8V17H8v-1.5Z" /></svg>
+                <h2>Pricing changes</h2>
+            </header>
+            <p>Draft rule changes, check the effect on each multiplier, and send them for approval.</p>
+            <ol class="panel__steps">
+                <li><span>Draft</span> an analyst edits the rule set</li>
+                <li><span>Submit</span> the change goes to the approval queue</li>
+                <li><span>Approve</span> a different manager publishes it live</li>
+            </ol>
+            <p><a class="button" asp-page="/Changes/Index">Open pricing changes</a></p>
+        </article>
+    }
+
+    <article class="panel panel--quiet">
+        <header class="panel__header">
+            <svg class="panel__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-6h2v6Zm0-8h-2V7h2v2Z" /></svg>
+            <h2>Your access</h2>
+        </header>
+        <ul class="panel__list panel__list--plain">
+            <li>@(analyst ? "Can draft and submit pricing changes" : "Cannot draft pricing changes")</li>
+            <li>@(manager ? "Can approve and publish other people's changes" : "Cannot approve pricing changes")</li>
+            <li>@(editor ? "Can create and edit policies" : "Can view policies only")</li>
+        </ul>
+    </article>
+</section>

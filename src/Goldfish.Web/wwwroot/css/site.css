@@ -98,3 +98,54 @@ dl.facts dd { margin: 0; }
 .narrow-form input, .narrow-form select { display: block; width: 100%; box-sizing: border-box; margin-top: 2px; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
 .input-validation-error { border-color: var(--bad); }
+/* Header user area and footer */
+header.top .who { color: var(--muted); font-size: 0.9em; }
+footer.site { margin-top: 32px; padding: 20px 24px; background: var(--line); color: var(--muted); font-size: 14px; }
+footer.site p { margin: 0; max-width: 1400px; }
+
+/* Homepage: B2B insurance workspace */
+.home-hero { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: flex-end; justify-content: space-between;
+    margin: 0 -24px 24px; padding: 32px 24px 28px; color: #fff;
+    background: linear-gradient(120deg, var(--brand-blue-deep) 0%, var(--brand-blue) 70%); border-bottom: 4px solid var(--brand-orange); }
+.home-hero__text { max-width: 640px; }
+.home-hero__eyebrow { margin: 0 0 6px; font-family: var(--font-heading); font-weight: 500; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: #fde7cc; }
+.home-hero h1 { color: #fff; font-size: 2rem; margin: 0 0 8px; }
+.home-hero__lead { margin: 0; color: #e6f0f8; font-size: 1.05rem; line-height: 1.55; }
+.home-hero__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.home-hero__actions .button { background: #fff; color: var(--brand-blue); border-color: #fff; border-bottom-color: #cccccc; font-weight: 600; }
+.home-hero__actions .button:hover { background: #e6f0f8; color: var(--brand-blue-dark); }
+.home-hero__actions .button.primary { background: var(--fg); color: #fff; border-color: var(--fg); border-bottom-color: #000; }
+.home-hero__actions .button.primary:hover { background: #000; color: #fff; }
+.home-hero a:focus-visible { outline-color: #fff; }
+
+.home-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi { position: relative; background: var(--card); border: 1px solid var(--line); border-top: 4px solid var(--brand-blue); border-radius: var(--radius); padding: 16px 18px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); }
+.kpi--attention { border-top-color: var(--brand-orange); }
+.kpi__label { margin: 0 0 6px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.kpi__value { margin: 0 0 6px; font-family: var(--font-heading); font-size: 2rem; font-weight: 700; color: var(--fg); font-variant-numeric: tabular-nums; }
+.kpi__value--empty { font-size: 1.4rem; color: var(--muted); }
+.kpi__meta { margin: 0 0 2px; color: var(--muted); font-size: 0.9em; }
+.kpi__meta code { font-size: 0.85em; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
+.kpi__link { display: inline-block; margin-top: 10px; font-weight: 600; }
+.kpi__link::after { content: " \203A"; }
+
+.home-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+.panel--quiet { background: var(--bg); }
+.panel__header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.panel__header h2 { margin: 0; }
+.panel__icon { width: 26px; height: 26px; fill: var(--brand-blue); flex: none; }
+.panel__list { margin: 10px 0 0; padding: 0; list-style: none; }
+.panel__list li { padding: 7px 0; border-top: 1px solid var(--line); }
+.panel__list li:first-child { border-top: none; }
+.panel__list a { font-weight: 600; }
+.panel__list--plain li { color: var(--fg); }
+.panel__steps { margin: 10px 0 14px; padding: 0; list-style: none; counter-reset: step; }
+.panel__steps li { counter-increment: step; display: flex; gap: 10px; align-items: baseline; padding: 5px 0; color: var(--muted); }
+.panel__steps li::before { content: counter(step); flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--brand-blue); color: #fff; font-size: 0.8em; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.panel__steps span { font-weight: 600; color: var(--fg); }
+
+@media (max-width: 700px) {
+    .home-hero { margin: 0 -16px 20px; padding: 24px 16px; }
+    .home-hero h1 { font-size: 1.6rem; }
+}
