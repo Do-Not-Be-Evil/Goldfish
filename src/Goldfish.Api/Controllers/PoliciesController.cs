@@ -3,6 +3,7 @@ using Goldfish.Api.Extensions;
 using Goldfish.Application.Policies;
 using Goldfish.Application.Policies.CreatePolicy;
 using Goldfish.Application.Policies.GetPolicyById;
+using Goldfish.Application.Policies.ListPolicies;
 using Goldfish.Application.Policies.UpdatePolicy;
 using Goldfish.Application.Quotes;
 using Goldfish.Application.Quotes.CreateQuote;
@@ -39,6 +40,21 @@ public sealed class PoliciesController : ControllerBase
 
         Response.Headers.ETag = result.Value.ETag;
         return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = Permissions.PoliciesRead)]
+    [ProducesResponseType<PolicyPage>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> List(
+        [FromServices] ListPoliciesHandler handler,
+        CancellationToken cancellationToken,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = ListPoliciesQuery.DefaultTake,
+        [FromQuery] string? policyType = null)
+    {
+        var result = await handler.HandleAsync(new ListPoliciesQuery(skip, take, policyType), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : this.ToProblem(result.Error);
     }
 
     [HttpGet("{id:guid}")]

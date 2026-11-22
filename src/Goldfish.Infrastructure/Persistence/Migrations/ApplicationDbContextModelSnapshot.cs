@@ -89,28 +89,6 @@ namespace Goldfish.Infrastructure.Persistence.Migrations
                             }));
                 });
 
-            modelBuilder.Entity("Goldfish.Domain.Products.Product", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedOnUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Products", (string)null);
-                });
-
             modelBuilder.Entity("Goldfish.Domain.Quotes.Quote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -286,6 +264,264 @@ namespace Goldfish.Infrastructure.Persistence.Migrations
                     b.ToTable("PricingRuleSetVersions", "pricing");
                 });
 
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.ApprovalRecord", b =>
+                {
+                    b.Property<Guid>("ChangeRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ApprovedOnUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("ApproverName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ApproverOid")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("PublishedVersionNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ChangeRequestId");
+
+                    b.HasIndex("PublishedVersionNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Approvals_PublishedVersionNumber");
+
+                    b.HasIndex("RevisionId");
+
+                    b.ToTable("Approvals", "rulesadmin");
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.ChangeRequestEventRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ActorOid")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<Guid>("ChangeRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("OccurredOnUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid?>("RevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RevisionId");
+
+                    b.HasIndex("ChangeRequestId", "Id")
+                        .HasDatabaseName("IX_ChangeRequestEvents_ChangeRequest");
+
+                    b.ToTable("ChangeRequestEvents", "rulesadmin", t =>
+                        {
+                            t.HasCheckConstraint("CK_ChangeRequestEvents_Type", "[Type] IN ('Submitted','Rejected','Withdrawn','Comment')");
+                        });
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.ChangeRequestRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("CreatedByOid")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedOnUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Reference")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ChangeRequests_Reference");
+
+                    b.ToTable("ChangeRequests", "rulesadmin", t =>
+                        {
+                            t.HasCheckConstraint("CK_ChangeRequests_Reference", "[Reference] LIKE 'GFA-%'");
+                        });
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.RatioBandRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MaxRatio")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)");
+
+                    b.Property<decimal>("MinRatio")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RatioBand", "rulesadmin", t =>
+                        {
+                            t.HasCheckConstraint("CK_RatioBand_Range", "[MinRatio] > 0 AND [MinRatio] <= 1 AND [MaxRatio] >= 1");
+
+                            t.HasCheckConstraint("CK_RatioBand_SingleRow", "[Id] = 1");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            MaxRatio = 1.25m,
+                            MinRatio = 0.8m
+                        });
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.RevisionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("AuthorOid")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("BaseVersionNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ChangeRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedOnUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangeRequestId", "RevisionNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Revisions_ChangeRequest_Number");
+
+                    b.ToTable("Revisions", "rulesadmin", t =>
+                        {
+                            t.HasCheckConstraint("CK_Revisions_BaseVersionNumber", "[BaseVersionNumber] >= 0");
+
+                            t.HasCheckConstraint("CK_Revisions_RevisionNumber", "[RevisionNumber] >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.RevisionRuleRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<decimal?>("MaxCoverageLimitInclusive")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("MinCoverageLimitExclusive")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Multiplier")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PolicyType")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .UseCollation("Latin1_General_BIN2");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RevisionId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_RevisionRules_Revision_Name");
+
+                    b.ToTable("RevisionRules", "rulesadmin");
+                });
+
             modelBuilder.Entity("Goldfish.Domain.Quotes.Quote", b =>
                 {
                     b.HasOne("Goldfish.Domain.Policies.Policy", null)
@@ -321,7 +557,65 @@ namespace Goldfish.Infrastructure.Persistence.Migrations
                         .HasConstraintName("FK_PricingRules_Versions");
                 });
 
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.ApprovalRecord", b =>
+                {
+                    b.HasOne("Goldfish.Infrastructure.Persistence.RulesAdmin.ChangeRequestRecord", null)
+                        .WithOne()
+                        .HasForeignKey("Goldfish.Infrastructure.Persistence.RulesAdmin.ApprovalRecord", "ChangeRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Approvals_ChangeRequests");
+
+                    b.HasOne("Goldfish.Infrastructure.Persistence.RulesAdmin.RevisionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("RevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Approvals_Revisions");
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.ChangeRequestEventRecord", b =>
+                {
+                    b.HasOne("Goldfish.Infrastructure.Persistence.RulesAdmin.ChangeRequestRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ChangeRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ChangeRequestEvents_ChangeRequests");
+
+                    b.HasOne("Goldfish.Infrastructure.Persistence.RulesAdmin.RevisionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("RevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ChangeRequestEvents_Revisions");
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.RevisionRecord", b =>
+                {
+                    b.HasOne("Goldfish.Infrastructure.Persistence.RulesAdmin.ChangeRequestRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ChangeRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Revisions_ChangeRequests");
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.RevisionRuleRecord", b =>
+                {
+                    b.HasOne("Goldfish.Infrastructure.Persistence.RulesAdmin.RevisionRecord", null)
+                        .WithMany("Rules")
+                        .HasForeignKey("RevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_RevisionRules_Revisions");
+                });
+
             modelBuilder.Entity("Goldfish.Infrastructure.Persistence.Pricing.PricingRuleSetVersionRecord", b =>
+                {
+                    b.Navigation("Rules");
+                });
+
+            modelBuilder.Entity("Goldfish.Infrastructure.Persistence.RulesAdmin.RevisionRecord", b =>
                 {
                     b.Navigation("Rules");
                 });

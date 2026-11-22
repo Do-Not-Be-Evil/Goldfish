@@ -1,0 +1,82 @@
+@page "/"
+@inject ListChangeRequestsHandler ListHandler
+@inject CreateChangeRequestHandler CreateHandler
+@inject NavigationManager Navigation
+
+<PageTitle>Change requests</PageTitle>
+
+<h1>Change requests</h1>
+
+@if (_actor.IsAnalyst)
+{
+    <section class="card">
+        <h2>Start a change request</h2>
+        <p>The draft starts as a copy of the live rules. Nothing is published until a manager approves it.</p>
+        <EditForm Model="Create" FormName="create" OnSubmit="CreateAsync">
+            <label>Title <InputText @bind-Value="Create!.Title" maxlength="200" class="wide" /></label>
+            <button type="submit">Start draft</button>
+        </EditForm>
+        @if (_error is not null) { <p class="error">@_error</p> }
+    </section>
+}
+
+@if (_requests.Count == 0)
+{
+    <p>No change requests yet.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th>Reference</th><th>Title</th><th>Status</th><th>Base version</th><th>Published as</th><th>Started by</th><th>Started (UTC)</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var r in _requests)
+            {
+                <tr>
+                    <td><a href="/requests/@r.Id">@r.Reference</a></td>
+                    <td>@r.Title</td>
+                    <td><StatusBadge Status="r.Status" /></td>
+                    <td>@r.BaseVersionNumber</td>
+                    <td>@(r.PublishedVersionNumber?.ToString() ?? "")</td>
+                    <td>@r.CreatedByName</td>
+                    <td>@r.CreatedOnUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "create")] private CreateModel? Create { get; set; }
+
+    private Actor _actor = default!;
+    private IReadOnlyList<ChangeRequestSummary> _requests = [];
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Create ??= new();
+        _actor = PricingRoles.ToActor(HttpContext.User);
+        _requests = await ListHandler.HandleAsync(HttpContext.RequestAborted);
+    }
+
+    private async Task CreateAsync()
+    {
+        var result = await CreateHandler.HandleAsync(_actor, Create!.Title, HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            _error = result.Error.Description;
+            return;
+        }
+
+        Navigation.NavigateTo($"/requests/{result.Value}/edit");
+    }
+
+    private sealed class CreateModel
+    {
+        public string? Title { get; set; }
+    }
+}

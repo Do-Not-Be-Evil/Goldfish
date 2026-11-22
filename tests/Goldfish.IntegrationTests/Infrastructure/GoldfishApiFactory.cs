@@ -32,6 +32,9 @@ public sealed class GoldfishApiFactory(string connectionString) : WebApplication
         Convert.ToBase64String(Enumerable.Range(0, 32).Select(i => (byte)(seed * 31 + i)).ToArray())
             .TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
+    /// <summary>The raw API key for one of the test keys, for clients that set the header themselves.</summary>
+    public static string KeyFor(string keyName) => TestKeys[keyName].Key;
+
     public HttpClient CreateClient(string keyName)
     {
         var client = CreateClient();

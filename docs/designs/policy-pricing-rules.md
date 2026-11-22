@@ -4,6 +4,12 @@
 *   **Status:** Proposed
 *   **Date:** 2026-11-21
 
+> **Partly superseded (2026-11-22)** by [pricing-rules-admin-app.md](pricing-rules-admin-app.md). Rule changes
+> are now drafted, approved and published in the pricing rules admin app; the change-ticket and sqlcmd
+> publishing path, the publisher login, the Non-Goal "a rule-editing screen or in-app approval workflow", and
+> the rejection of Alternative U no longer apply. Everything about matching, versions, quotes and the publish
+> procedure itself still stands.
+
 --------------------------------------------------------------------------------
 
 ## Overview

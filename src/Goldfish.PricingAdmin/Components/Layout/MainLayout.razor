@@ -1,0 +1,22 @@
+@inherits LayoutComponentBase
+
+<header class="top">
+    <a class="brand" href="/">Goldfish pricing rules</a>
+    <AuthorizeView>
+        <Authorized>
+            <span class="who">
+                @context.User.Identity?.Name
+                @if (context.User.IsInRole(PricingRoles.Analyst)) { <span class="tag">Analyst</span> }
+                @if (context.User.IsInRole(PricingRoles.Manager)) { <span class="tag">Manager</span> }
+            </span>
+            <form method="post" action="/sign-out" class="inline">
+                <AntiforgeryToken />
+                <button type="submit" class="link">Sign out</button>
+            </form>
+        </Authorized>
+    </AuthorizeView>
+</header>
+
+<main>
+    @Body
+</main>

@@ -1,0 +1,263 @@
+@page "/requests/{Id:guid}"
+@inject GetChangeRequestHandler GetHandler
+@inject SubmitChangeRequestHandler SubmitHandler
+@inject WithdrawChangeRequestHandler WithdrawHandler
+@inject RejectChangeRequestHandler RejectHandler
+@inject ApproveChangeRequestHandler ApproveHandler
+@inject CommentOnChangeRequestHandler CommentHandler
+@inject RestartFromLatestHandler RestartHandler
+@inject NavigationManager Navigation
+
+@if (_details is null)
+{
+    <PageTitle>Not found</PageTitle>
+    <h1>Change request not found</h1>
+    <p><a href="/">Back to the list</a></p>
+    return;
+}
+
+@{
+    var d = _details;
+    var data = d.Data;
+    var revision = data.LatestRevision;
+    var actions = d.Actions;
+}
+
+<PageTitle>@data.Reference</PageTitle>
+
+<p><a href="/">← All change requests</a></p>
+<h1>@data.Title</h1>
+<p class="meta">
+    <strong>@data.Reference</strong> · <StatusBadge Status="d.Status" /> ·
+    revision @revision.RevisionNumber by @revision.AuthorName ·
+    based on version @revision.BaseVersionNumber (latest published: @d.LatestVersionNumber)
+    @if (data.Approval is { } approval)
+    {
+        <span> · published as version <strong>@approval.PublishedVersionNumber</strong> by @approval.ApproverName</span>
+    }
+</p>
+
+@if (_error is not null) { <p class="error banner" role="alert">@_error</p> }
+@if (_notice is not null) { <p class="notice banner" role="status">@_notice</p> }
+
+@if (d.IsStale)
+{
+    <p class="warning banner">
+        Version @d.LatestVersionNumber was published after this draft was started from version @revision.BaseVersionNumber.
+        It cannot be approved. An analyst must restart it from the latest version and re-enter the changes.
+    </p>
+}
+
+@if (d.Problems.Count > 0)
+{
+    <section class="card error">
+        <h2>Problems</h2>
+        <ul>@foreach (var p in d.Problems) { <li>@(p.Row is { } row ? $"Rule {row + 1}: " : "")@p.Message</li> }</ul>
+    </section>
+}
+
+<section class="card">
+    <h2>Changes against version @revision.BaseVersionNumber</h2>
+    <RuleDiffTable Changes="d.Diff" Band="d.Band" />
+</section>
+
+<section class="card actions">
+    <h2>Actions</h2>
+
+    @if (actions.CanEdit)
+    {
+        <p><a class="button" href="/requests/@data.Id/edit">Edit rules</a></p>
+    }
+
+    @if (actions.CanRestart)
+    {
+        <EditForm Model="Restart" FormName="restart" OnSubmit="RestartAsync">
+            <button type="submit">Restart from version @d.LatestVersionNumber</button>
+            <span class="hint">Replaces the draft's rules with the latest published rules as a new revision.</span>
+        </EditForm>
+    }
+
+    @if (actions.CanSubmit)
+    {
+        <EditForm Model="Submit" FormName="submit" OnSubmit="SubmitAsync">
+            <label>Note for the approver (optional) <InputTextArea @bind-Value="Submit!.Comment" maxlength="2000" /></label>
+            <button type="submit">Submit for approval</button>
+        </EditForm>
+    }
+    else if (_actor.IsAnalyst && d.Status == ChangeRequestStatus.Draft)
+    {
+        <p class="hint">Cannot submit yet: @actions.SubmitBlockedReason</p>
+    }
+
+    @if (actions.CanApprove)
+    {
+        <EditForm Model="Approve" FormName="approve" OnSubmit="ApproveAsync" class="approve">
+            <input type="hidden" name="Approve.RevisionId" value="@revision.Id" />
+            <p><strong>Approving publishes revision @revision.RevisionNumber immediately as version @(d.LatestVersionNumber + 1).</strong>
+                Quotes use it from the moment it commits.</p>
+            <label><InputCheckbox @bind-Value="Approve!.Confirm" /> I have reviewed every change and ratio above, and
+                understand that approving makes these prices live now.</label>
+            <label>Comment (optional) <InputTextArea @bind-Value="Approve!.Comment" maxlength="2000" /></label>
+            <button type="submit" class="primary">Approve and publish</button>
+        </EditForm>
+    }
+
+    @if (actions.CanReject)
+    {
+        <EditForm Model="Reject" FormName="reject" OnSubmit="RejectAsync">
+            <label>Reason for rejecting (required) <InputTextArea @bind-Value="Reject!.Comment" maxlength="2000" /></label>
+            <button type="submit">Reject</button>
+        </EditForm>
+    }
+
+    @if (!actions.CanApprove && !actions.CanReject && _actor.IsManager && actions.ReviewBlockedReason is { } why
+         && d.Status == ChangeRequestStatus.Submitted)
+    {
+        <p class="hint">You cannot approve this: @why</p>
+    }
+    @if (actions.CanReject && !actions.CanApprove && actions.ReviewBlockedReason is { } staleWhy)
+    {
+        <p class="hint">Approve is unavailable: @staleWhy</p>
+    }
+
+    @if (actions.CanWithdraw)
+    {
+        <EditForm Model="Withdraw" FormName="withdraw" OnSubmit="WithdrawAsync">
+            <label>Reason for withdrawing (optional) <InputText @bind-Value="Withdraw!.Comment" maxlength="2000" class="wide" /></label>
+            <button type="submit">Withdraw</button>
+        </EditForm>
+    }
+</section>
+
+<section class="card">
+    <h2>History</h2>
+    <ol class="history">
+        @foreach (var item in History(data))
+        {
+            <li><span class="when">@item.When.ToString("yyyy-MM-dd HH:mm:ss") UTC</span> <strong>@item.Who</strong> @item.What
+                @if (item.Comment is not null) { <blockquote>@item.Comment</blockquote> }</li>
+        }
+    </ol>
+    @if (actions.CanComment)
+    {
+        <EditForm Model="Comment" FormName="comment" OnSubmit="CommentAsync">
+            <label>Add a comment <InputTextArea @bind-Value="Comment!.Comment" maxlength="2000" /></label>
+            <button type="submit">Comment</button>
+        </EditForm>
+    }
+</section>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "submit")] private ActionModel? Submit { get; set; }
+    [SupplyParameterFromForm(FormName = "withdraw")] private ActionModel? Withdraw { get; set; }
+    [SupplyParameterFromForm(FormName = "reject")] private ActionModel? Reject { get; set; }
+    [SupplyParameterFromForm(FormName = "approve")] private ActionModel? Approve { get; set; }
+    [SupplyParameterFromForm(FormName = "comment")] private ActionModel? Comment { get; set; }
+    [SupplyParameterFromForm(FormName = "restart")] private ActionModel? Restart { get; set; }
+
+    [SupplyParameterFromQuery(Name = "published")] private int? PublishedVersion { get; set; }
+
+    private Actor _actor = default!;
+    private ChangeRequestDetails? _details;
+    private string? _error;
+    private string? _notice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Submit ??= new(); Withdraw ??= new(); Reject ??= new(); Approve ??= new(); Comment ??= new(); Restart ??= new();
+        _actor = PricingRoles.ToActor(HttpContext.User);
+        if (PublishedVersion is { } v) _notice = $"Published as version {v}. It is live now.";
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var result = await GetHandler.HandleAsync(Id, _actor, HttpContext.RequestAborted);
+        _details = result.IsSuccess ? result.Value : null;
+        if (_details is null) HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+    }
+
+    private Task SubmitAsync() => RunAsync(() => SubmitHandler.HandleAsync(Id, _actor, Submit!.Comment, HttpContext.RequestAborted));
+    private Task WithdrawAsync() => RunAsync(() => WithdrawHandler.HandleAsync(Id, _actor, Withdraw!.Comment, HttpContext.RequestAborted));
+    private Task RejectAsync() => RunAsync(() => RejectHandler.HandleAsync(Id, _actor, Reject!.Comment, HttpContext.RequestAborted));
+    private Task CommentAsync() => RunAsync(() => CommentHandler.HandleAsync(Id, _actor, Comment!.Comment, HttpContext.RequestAborted));
+    private Task RestartAsync() => RunAsync(() => RestartHandler.HandleAsync(Id, _actor, HttpContext.RequestAborted));
+
+    private async Task ApproveAsync()
+    {
+        var result = await ApproveHandler.HandleAsync(
+            Id, Approve!.RevisionId, _actor, Approve.Confirm, Approve.Comment, HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            await FailAsync(result.Error.Description);
+            return;
+        }
+
+        Navigation.NavigateTo($"/requests/{Id}?published={result.Value}");
+    }
+
+    private async Task RunAsync(Func<Task<Goldfish.Domain.Abstractions.Result>> action)
+    {
+        var result = await action();
+        if (result.IsFailure)
+        {
+            await FailAsync(result.Error.Description);
+            return;
+        }
+
+        Navigation.NavigateTo($"/requests/{Id}");
+    }
+
+    private async Task FailAsync(string message)
+    {
+        _error = message;
+        HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await LoadAsync();
+    }
+
+    private sealed record HistoryItem(DateTime When, string Who, string What, string? Comment);
+
+    private static IEnumerable<HistoryItem> History(ChangeRequestData data)
+    {
+        var items = new List<HistoryItem>();
+        foreach (var r in data.Revisions)
+        {
+            items.Add(new(r.CreatedOnUtc, r.AuthorName,
+                r.RevisionNumber == 1 ? $"started the request from version {r.BaseVersionNumber}"
+                                      : $"saved revision {r.RevisionNumber} (based on version {r.BaseVersionNumber})", null));
+        }
+
+        var revisionNumbers = data.Revisions.ToDictionary(r => r.Id, r => r.RevisionNumber);
+        foreach (var e in data.Events)
+        {
+            var rev = e.RevisionId is { } id && revisionNumbers.TryGetValue(id, out var n) ? $" revision {n}" : "";
+            var what = e.Type switch
+            {
+                ChangeRequestEventType.Submitted => $"submitted{rev} for approval",
+                ChangeRequestEventType.Rejected => $"rejected{rev}",
+                ChangeRequestEventType.Withdrawn => "withdrew the request",
+                _ => "commented",
+            };
+            items.Add(new(e.OccurredOnUtc, e.ActorName, what, e.Comment));
+        }
+
+        if (data.Approval is { } a)
+        {
+            items.Add(new(a.ApprovedOnUtc, a.ApproverName,
+                $"approved revision {revisionNumbers[a.RevisionId]} and published it as version {a.PublishedVersionNumber}", a.Comment));
+        }
+
+        return items.OrderBy(i => i.When);
+    }
+
+    private sealed class ActionModel
+    {
+        public string? Comment { get; set; }
+        public bool Confirm { get; set; }
+        public Guid RevisionId { get; set; }
+    }
+}

@@ -1,0 +1,22 @@
+@model ApiPolicy
+@{
+    ViewData["Title"] = "Policy";
+}
+<p><a asp-action="Index">← All policies</a></p>
+<h1>@Model.PolicyType policy</h1>
+
+<dl class="facts">
+    <dt>Policy ID</dt><dd><code>@Model.Id</code></dd>
+    <dt>Type</dt><dd>@Model.PolicyType</dd>
+    <dt>Coverage limit</dt><dd>@Model.CoverageLimit.ToString("#,0.00")</dd>
+    <dt>Base price</dt><dd>@Model.BasePrice.ToString("#,0.00")</dd>
+    <dt>Created</dt><dd>@Model.CreatedOnUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>
+    <dt>Last changed by</dt><dd>@Model.ModifiedBy</dd>
+</dl>
+
+<p class="hint">The quoted price is the base price times the multiplier of the first matching rule in the live rule version.</p>
+
+@if (ViewBag.CanEdit == true)
+{
+    <p><a class="button" asp-action="Edit" asp-route-id="@Model.Id">Edit</a></p>
+}

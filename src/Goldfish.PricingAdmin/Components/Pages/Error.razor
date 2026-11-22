@@ -1,0 +1,14 @@
+@page "/error"
+@attribute [AllowAnonymous]
+@using System.Diagnostics
+
+<PageTitle>Error</PageTitle>
+<h1>Something went wrong</h1>
+<p>The request could not be completed. Nothing was published by the failed request.</p>
+@if (RequestId is not null) { <p>Request ID: <code>@RequestId</code></p> }
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId => Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

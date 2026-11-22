@@ -1,0 +1,36 @@
+@model HomeViewModel
+@{
+    ViewData["Title"] = "Start";
+    var pricing = User.IsInRole(WebRoles.Analyst) || User.IsInRole(WebRoles.Manager);
+}
+<h1>Goldfish pricing</h1>
+
+<div class="cards">
+    <section class="card">
+        <h2>Live rule version</h2>
+        @if (Model.ActiveVersion is { } v)
+        {
+            <p class="big">Version @v.VersionNumber</p>
+            <p class="meta">@v.ChangeTicketRef · published @v.PublishedOnUtc.ToString("yyyy-MM-dd HH:mm") UTC</p>
+        }
+        else
+        {
+            <p class="warning">@(Model.ActiveVersionProblem ?? "No version has been published.")</p>
+        }
+    </section>
+
+    <section class="card">
+        <h2>Policies</h2>
+        <p>Policy types, coverage limits and base prices.</p>
+        <p><a class="button" asp-controller="Policies" asp-action="Index">Open policies</a></p>
+    </section>
+
+    @if (pricing)
+    {
+        <section class="card">
+            <h2>Pricing changes</h2>
+            <p><strong>@Model.AwaitingApproval</strong> awaiting approval · <strong>@Model.OpenChangeRequests</strong> drafts</p>
+            <p><a class="button" asp-page="/Changes/Index">Open pricing changes</a></p>
+        </section>
+    }
+</div>

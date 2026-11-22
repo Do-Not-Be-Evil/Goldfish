@@ -1,0 +1,5 @@
+<span class="status status-@Status.ToString().ToLowerInvariant()">@Status</span>
+
+@code {
+    [Parameter, EditorRequired] public ChangeRequestStatus Status { get; set; }
+}

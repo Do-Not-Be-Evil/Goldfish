@@ -3,6 +3,7 @@ namespace Goldfish.Infrastructure.Persistence;
 internal static class PersistenceConventions
 {
     public const string PricingSchema = "pricing";
+    public const string RulesAdminSchema = "rulesadmin";
     public const string BinaryCollation = "Latin1_General_BIN2";
     public const int PolicyTypeMaxLength = 32;
     public const int CallerNameMaxLength = 64;

@@ -1,0 +1,223 @@
+@page "/requests/{Id:guid}/edit"
+@inject GetChangeRequestHandler GetHandler
+@inject SaveRevisionHandler SaveHandler
+@inject IRulesAdminStore Store
+@inject NavigationManager Navigation
+
+@if (_details is null)
+{
+    <PageTitle>Not found</PageTitle>
+    <h1>Change request not found</h1>
+    return;
+}
+
+<PageTitle>Edit @_details.Data.Reference</PageTitle>
+
+<p><a href="/requests/@Id">← Back to @_details.Data.Reference</a></p>
+<h1>Edit rules: @_details.Data.Title</h1>
+
+@if (!_details.Actions.CanEdit)
+{
+    <p class="warning banner">This change request cannot be edited now (status: @_details.Status).</p>
+    return;
+}
+
+<p class="hint">
+    The lowest priority number wins. Exactly one rule must be the catch-all (no policy type and no coverage limits),
+    and it must have the largest priority number. Saving creates a new revision; earlier revisions are kept.
+</p>
+
+@if (_error is not null) { <p class="error banner" role="alert">@_error</p> }
+
+<EditForm Model="Model" FormName="edit" OnSubmit="HandleAsync">
+    <input type="hidden" name="Model.ExpectedRevision" value="@Model!.ExpectedRevision" />
+    <table class="edit">
+        <thead>
+            <tr><th>#</th><th>Name</th><th>Priority</th><th>Policy type</th><th>Coverage over</th><th>Coverage up to</th>
+                <th>Multiplier</th><th>Ratio</th><th>Reason</th><th></th></tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Model.Rules.Count; i++)
+            {
+                var index = i;
+                var change = ChangeFor(Model.Rules[index].Name);
+                <tr class="@(Problems(index).Any() ? "has-problem" : "")">
+                    <td>@(index + 1)</td>
+                    <td><InputText @bind-Value="Model.Rules[index].Name" maxlength="200" /></td>
+                    <td><InputNumber @bind-Value="Model.Rules[index].Priority" min="1" class="narrow" /></td>
+                    <td>
+                        <InputSelect @bind-Value="Model.Rules[index].PolicyType">
+                            <option value="">Any</option>
+                            @foreach (var type in Enum.GetNames<Goldfish.Domain.Policies.PolicyType>())
+                            {
+                                <option value="@type">@type</option>
+                            }
+                        </InputSelect>
+                    </td>
+                    <td><InputNumber @bind-Value="Model.Rules[index].MinCoverageLimitExclusive" step="0.01" /></td>
+                    <td><InputNumber @bind-Value="Model.Rules[index].MaxCoverageLimitInclusive" step="0.01" /></td>
+                    <td><InputNumber @bind-Value="Model.Rules[index].Multiplier" step="0.0001" class="narrow" /></td>
+                    <td class="@(change?.Ratio is { } r && !_band.Contains(r) ? "out-of-band" : "")">
+                        @(change?.Ratio?.ToString("0.####") ?? (change?.Kind == RuleChangeKind.Added ? "new" : ""))
+                    </td>
+                    <td>
+                        <InputText @bind-Value="Model.Rules[index].Reason" maxlength="1000"
+                                   placeholder="@(change?.NeedsReason == true ? "Reason required" : "")"
+                                   class="@(change?.MissingReason == true ? "needs-reason" : "")" />
+                    </td>
+                    <td><button type="submit" name="Model.Action" value="remove:@index" class="link">Remove</button></td>
+                </tr>
+                @foreach (var p in Problems(index))
+                {
+                    <tr class="problem"><td></td><td colspan="9">@p.Message</td></tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    @foreach (var p in _problems.Where(p => p.Row is null))
+    {
+        <p class="error">@p.Message</p>
+    }
+
+    <p>
+        <button type="submit" name="Model.Action" value="add">Add rule</button>
+        <button type="submit" name="Model.Action" value="check">Check changes</button>
+        <button type="submit" name="Model.Action" value="save" class="primary">Save revision</button>
+    </p>
+</EditForm>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm(FormName = "edit")] private EditModel? Model { get; set; }
+
+    private Actor _actor = default!;
+    private ChangeRequestDetails? _details;
+    private IReadOnlyList<DraftRule> _baseRules = [];
+    private RatioBand _band = RatioBand.Default;
+    private IReadOnlyList<RuleSetProblem> _problems = [];
+    private IReadOnlyList<RuleChange> _changes = [];
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _actor = PricingRoles.ToActor(HttpContext.User);
+        var result = await GetHandler.HandleAsync(Id, _actor, HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        _details = result.Value;
+        var revision = _details.Data.LatestRevision;
+        _baseRules = await Store.GetVersionRulesAsync(revision.BaseVersionNumber, HttpContext.RequestAborted);
+        _band = _details.Band;
+
+        // On GET, start from the latest revision; on POST, keep what the analyst typed.
+        Model ??= new EditModel
+        {
+            ExpectedRevision = revision.RevisionNumber,
+            Rules = revision.Rules.Select(RuleRow.From).ToList(),
+        };
+        Recalculate();
+    }
+
+    private async Task HandleAsync()
+    {
+        var action = Model!.Action ?? "check";
+
+        if (action == "add")
+        {
+            var next = Model.Rules.Where(r => r.Priority is not null).Select(r => r.Priority!.Value).DefaultIfEmpty(0).Max() + 10;
+            Model.Rules.Add(new RuleRow { Priority = next, Multiplier = 1m });
+        }
+        else if (action.StartsWith("remove:", StringComparison.Ordinal)
+                 && int.TryParse(action["remove:".Length..], out var index) && index >= 0 && index < Model.Rules.Count)
+        {
+            Model.Rules.RemoveAt(index);
+        }
+
+        Recalculate();
+
+        if (action != "save")
+        {
+            return;
+        }
+
+        if (_problems.Count > 0)
+        {
+            _error = RulesAdminErrors.Invalid.Description;
+            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
+
+        var result = await SaveHandler.HandleAsync(Id, _actor, Model.ExpectedRevision, Rules(), HttpContext.RequestAborted);
+        if (result.IsFailure)
+        {
+            _error = result.Error.Description;
+            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
+
+        Navigation.NavigateTo($"/requests/{Id}");
+    }
+
+    private IReadOnlyList<DraftRule> Rules() => Model!.Rules.Select(r => r.ToDraftRule()).ToList();
+
+    private void Recalculate()
+    {
+        var rules = Rules();
+        // A blank priority or multiplier becomes 0, which the validator reports as out of range.
+        _problems = RuleSetValidator.Validate(rules);
+        _changes = RuleSetDiff.Compute(_baseRules, rules.Where(r => !string.IsNullOrWhiteSpace(r.Name))
+            .DistinctBy(r => r.Name.Trim(), StringComparer.OrdinalIgnoreCase).ToList(), _band);
+    }
+
+    private IEnumerable<RuleSetProblem> Problems(int row) => _problems.Where(p => p.Row == row);
+
+    private RuleChange? ChangeFor(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? null
+            : _changes.FirstOrDefault(c => c.New is not null && string.Equals(c.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private sealed class EditModel
+    {
+        public int ExpectedRevision { get; set; }
+        public string? Action { get; set; }
+        public List<RuleRow> Rules { get; set; } = [];
+    }
+
+    private sealed class RuleRow
+    {
+        public string? Name { get; set; }
+        public int? Priority { get; set; }
+        public string? PolicyType { get; set; }
+        public decimal? MinCoverageLimitExclusive { get; set; }
+        public decimal? MaxCoverageLimitInclusive { get; set; }
+        public decimal? Multiplier { get; set; }
+        public string? Reason { get; set; }
+
+        public static RuleRow From(DraftRule r) => new()
+        {
+            Name = r.Name,
+            Priority = r.Priority,
+            PolicyType = r.PolicyType,
+            MinCoverageLimitExclusive = r.MinCoverageLimitExclusive,
+            MaxCoverageLimitInclusive = r.MaxCoverageLimitInclusive,
+            Multiplier = r.Multiplier,
+            Reason = r.Reason,
+        };
+
+        public DraftRule ToDraftRule() => new(
+            Name?.Trim() ?? string.Empty,
+            Priority ?? 0,
+            string.IsNullOrWhiteSpace(PolicyType) ? null : PolicyType,
+            MinCoverageLimitExclusive,
+            MaxCoverageLimitInclusive,
+            Multiplier ?? 0m,
+            string.IsNullOrWhiteSpace(Reason) ? null : Reason.Trim());
+    }
+}

@@ -1,0 +1,50 @@
+@model PolicyListViewModel
+@{
+    ViewData["Title"] = "Policies";
+}
+<h1>Policies</h1>
+
+<form method="get" class="toolbar">
+    <label>Type
+        <select name="type" onchange="this.form.submit()">
+            <option value="">All</option>
+            @foreach (var t in PolicyFormModel.PolicyTypes)
+            {
+                <option value="@t" selected="@(t == Model.PolicyType)">@t</option>
+            }
+        </select>
+    </label>
+    <noscript><button type="submit">Filter</button></noscript>
+    @if (Model.CanEdit)
+    {
+        <a class="button primary" asp-action="Create">New policy</a>
+    }
+</form>
+
+@if (Model.Page.Total == 0)
+{
+    <p>No policies found.</p>
+}
+else
+{
+    <table>
+        <thead><tr><th>Type</th><th class="num">Coverage limit</th><th class="num">Base price</th><th>Created (UTC)</th><th>Last changed by</th></tr></thead>
+        <tbody>
+            @foreach (var p in Model.Page.Items)
+            {
+                <tr>
+                    <td><a asp-action="Details" asp-route-id="@p.Id">@p.PolicyType</a></td>
+                    <td class="num">@p.CoverageLimit.ToString("#,0.00")</td>
+                    <td class="num">@p.BasePrice.ToString("#,0.00")</td>
+                    <td>@p.CreatedOnUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@p.ModifiedBy</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p class="pager">
+        Page @Model.PageNumber of @Model.PageCount (@Model.Page.Total policies)
+        @if (Model.PageNumber > 1) { <a asp-action="Index" asp-route-page="@(Model.PageNumber - 1)" asp-route-type="@Model.PolicyType">Previous</a> }
+        @if (Model.PageNumber < Model.PageCount) { <a asp-action="Index" asp-route-page="@(Model.PageNumber + 1)" asp-route-type="@Model.PolicyType">Next</a> }
+    </p>
+}

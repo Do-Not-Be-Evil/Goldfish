@@ -1,0 +1,8 @@
+@page
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@{
+    ViewData["Title"] = "Access denied";
+}
+<h1>Access denied</h1>
+<p>Your account does not have the role this page needs. Ask the app registration owner to assign
+    <code>@WebRoles.Analyst</code>, <code>@WebRoles.Manager</code> or <code>@WebRoles.PolicyEditor</code> in Entra ID.</p>

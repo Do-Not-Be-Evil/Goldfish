@@ -4,6 +4,8 @@
     <Project Path="src/Goldfish.Application/Goldfish.Application.csproj" />
     <Project Path="src/Goldfish.Domain/Goldfish.Domain.csproj" />
     <Project Path="src/Goldfish.Infrastructure/Goldfish.Infrastructure.csproj" />
+    <Project Path="src/Goldfish.PricingAdmin/Goldfish.PricingAdmin.csproj" />
+    <Project Path="src/Goldfish.Web/Goldfish.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Goldfish.Domain.Tests/Goldfish.Domain.Tests.csproj" />

@@ -1,0 +1,46 @@
+@page
+@model Goldfish.Web.Pages.Changes.IndexModel
+@{
+    ViewData["Title"] = "Pricing changes";
+}
+<h1>Pricing changes</h1>
+
+@if (Model.Actor.IsAnalyst)
+{
+    <section class="card">
+        <h2>Start a change request</h2>
+        <p>The draft starts as a copy of the live rules. Nothing is published until a manager approves it.</p>
+        <form method="post" asp-page-handler="Create">
+            <label>Title <input asp-for="Title" maxlength="200" class="wide" required /></label>
+            <button type="submit">Start draft</button>
+        </form>
+        @if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+    </section>
+}
+
+@if (Model.Requests.Count == 0)
+{
+    <p>No change requests yet.</p>
+}
+else
+{
+    <table>
+        <thead>
+            <tr><th>Reference</th><th>Title</th><th>Status</th><th>Base version</th><th>Published as</th><th>Started by</th><th>Started (UTC)</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model.Requests)
+            {
+                <tr>
+                    <td><a asp-page="Details" asp-route-id="@r.Id">@r.Reference</a></td>
+                    <td>@r.Title</td>
+                    <td><span class="status status-@r.Status.ToString().ToLowerInvariant()">@r.Status</span></td>
+                    <td>@r.BaseVersionNumber</td>
+                    <td>@r.PublishedVersionNumber</td>
+                    <td>@r.CreatedByName</td>
+                    <td>@r.CreatedOnUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

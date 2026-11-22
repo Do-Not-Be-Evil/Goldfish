@@ -16,6 +16,9 @@ public static class PolicyErrors
     public static readonly Error InvalidBasePrice =
         Error.Validation("Policy.InvalidBasePrice", "Base price must be above 0, at most 2 decimal places, and within range.");
 
+    public static readonly Error InvalidPage =
+        Error.Validation("Policy.InvalidPage", "skip must be 0 or more and take must be 1-200.");
+
     public static readonly Error Concurrency =
         Error.PreconditionFailed("Policy.Concurrency", "The policy was changed by another request. Reload it and retry with the new ETag.");
 }

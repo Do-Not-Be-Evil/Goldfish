@@ -2,6 +2,7 @@ using Goldfish.Domain.Abstractions;
 using Goldfish.Domain.Policies;
 using Goldfish.Domain.Quotes;
 using Goldfish.Infrastructure.Persistence.Pricing;
+using Goldfish.Infrastructure.Persistence.RulesAdmin;
 using Microsoft.EntityFrameworkCore;
 
 namespace Goldfish.Infrastructure.Persistence;
@@ -14,6 +15,13 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     internal DbSet<PricingRuleSetVersionRecord> PricingRuleSetVersions => Set<PricingRuleSetVersionRecord>();
     internal DbSet<PricingRuleRecord> PricingRules => Set<PricingRuleRecord>();
+
+    internal DbSet<ChangeRequestRecord> ChangeRequests => Set<ChangeRequestRecord>();
+    internal DbSet<RevisionRecord> Revisions => Set<RevisionRecord>();
+    internal DbSet<RevisionRuleRecord> RevisionRules => Set<RevisionRuleRecord>();
+    internal DbSet<ChangeRequestEventRecord> ChangeRequestEvents => Set<ChangeRequestEventRecord>();
+    internal DbSet<ApprovalRecord> Approvals => Set<ApprovalRecord>();
+    internal DbSet<RatioBandRecord> RatioBands => Set<RatioBandRecord>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

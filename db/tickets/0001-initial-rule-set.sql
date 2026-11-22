@@ -1,6 +1,10 @@
 /*
-    Ticket 0001: initial pricing rule set (version 1).
-    Built from db/templates/publish-rule-set-version.sql. Run with @DryRun = 1 first, then 0.
+    HISTORICAL. Ticket-script publishing is retired: grant-permissions.sql denies the publisher login EXECUTE on
+    pricing.PublishRuleSetVersion, so this script now fails with error 229 for that login. Publish rule changes
+    through the pricing rules admin app instead (docs/pricing-rules.md). Kept as the record of version 1 in
+    environments seeded before the app existed.
+
+    Ticket 0001: initial pricing rule set (version 1). Run with @DryRun = 1 first, then 0.
 */
 SET NOCOUNT ON;
 

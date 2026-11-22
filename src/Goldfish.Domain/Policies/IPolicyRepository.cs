@@ -11,5 +11,9 @@ public interface IPolicyRepository
     /// </summary>
     Task<Policy?> GetForUpdateAsync(Guid id, byte[] expectedRowVersion, CancellationToken cancellationToken = default);
 
+    /// <summary>A page of policies, newest first, optionally of one type, with the total count.</summary>
+    Task<(IReadOnlyList<Policy> Items, int Total)> ListAsync(
+        int skip, int take, PolicyType? type, CancellationToken cancellationToken = default);
+
     void Add(Policy policy);
 }

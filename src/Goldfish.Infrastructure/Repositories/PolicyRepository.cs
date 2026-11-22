@@ -21,5 +21,25 @@ internal sealed class PolicyRepository(ApplicationDbContext dbContext) : IPolicy
         return policy;
     }
 
+    public async Task<(IReadOnlyList<Policy> Items, int Total)> ListAsync(
+        int skip, int take, PolicyType? type, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Policies.AsNoTracking();
+        if (type is { } t)
+        {
+            query = query.Where(p => p.Type == t);
+        }
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(p => p.CreatedOnUtc)
+            .ThenBy(p => p.Id)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        return (items, total);
+    }
+
     public void Add(Policy policy) => dbContext.Policies.Add(policy);
 }

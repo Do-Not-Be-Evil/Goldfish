@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · Goldfish</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="top">
+        <a class="brand" asp-controller="Home" asp-action="Index">Goldfish</a>
+        <nav>
+            <a asp-controller="Policies" asp-action="Index">Policies</a>
+            @if (User.IsInRole(WebRoles.Analyst) || User.IsInRole(WebRoles.Manager))
+            {
+                <a asp-page="/Changes/Index">Pricing changes</a>
+            }
+        </nav>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <span class="who">
+                @User.Identity.Name
+                @if (User.IsInRole(WebRoles.Analyst)) { <span class="tag">Analyst</span> }
+                @if (User.IsInRole(WebRoles.Manager)) { <span class="tag">Manager</span> }
+                @if (User.IsInRole(WebRoles.PolicyEditor)) { <span class="tag">Policy editor</span> }
+            </span>
+            <form method="post" action="/sign-out" class="inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="link">Sign out</button>
+            </form>
+        }
+    </header>
+    <main>
+        @if (TempData["Notice"] is string notice)
+        {
+            <p class="notice banner" role="status">@notice</p>
+        }
+        @RenderBody()
+    </main>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

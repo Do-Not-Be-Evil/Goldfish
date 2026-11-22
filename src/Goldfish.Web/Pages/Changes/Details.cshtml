@@ -1,0 +1,129 @@
+@page "{id:guid}"
+@model Goldfish.Web.Pages.Changes.DetailsModel
+@{
+    var d = Model.Details;
+    var data = d.Data;
+    var revision = data.LatestRevision;
+    var actions = d.Actions;
+    ViewData["Title"] = data.Reference;
+}
+<p><a asp-page="Index">← All pricing changes</a></p>
+<h1>@data.Title</h1>
+<p class="meta">
+    <strong>@data.Reference</strong> · <span class="status status-@d.Status.ToString().ToLowerInvariant()">@d.Status</span> ·
+    revision @revision.RevisionNumber by @revision.AuthorName ·
+    based on version @revision.BaseVersionNumber (latest published: @d.LatestVersionNumber)
+    @if (data.Approval is { } approval)
+    {
+        <span> · published as version <strong>@approval.PublishedVersionNumber</strong> by @approval.ApproverName</span>
+    }
+</p>
+
+@if (Model.Error is not null) { <p class="error banner" role="alert">@Model.Error</p> }
+@if (Model.PublishedVersion is { } published) { <p class="notice banner" role="status">Published as version @published. It is live now.</p> }
+
+@if (d.IsStale)
+{
+    <p class="warning banner">
+        Version @d.LatestVersionNumber was published after this draft was started from version @revision.BaseVersionNumber.
+        It cannot be approved. An analyst must restart it from the latest version and re-enter the changes.
+    </p>
+}
+
+@if (d.Problems.Count > 0)
+{
+    <section class="card error">
+        <h2>Problems</h2>
+        <ul>@foreach (var p in d.Problems) { <li>@(p.Row is { } row ? $"Rule {row + 1}: " : "")@p.Message</li> }</ul>
+    </section>
+}
+
+<section class="card">
+    <h2>Changes against version @revision.BaseVersionNumber</h2>
+    <partial name="_RuleDiff" model="(d.Diff, d.Band)" />
+</section>
+
+<section class="card actions">
+    <h2>Actions</h2>
+
+    @if (actions.CanEdit)
+    {
+        <p><a class="button" asp-page="Edit" asp-route-id="@data.Id">Edit rules</a></p>
+    }
+
+    @if (actions.CanRestart)
+    {
+        <form method="post" asp-page-handler="Restart" asp-route-id="@data.Id">
+            <button type="submit">Restart from version @d.LatestVersionNumber</button>
+            <span class="hint">Replaces the draft's rules with the latest published rules as a new revision.</span>
+        </form>
+    }
+
+    @if (actions.CanSubmit)
+    {
+        <form method="post" asp-page-handler="Submit" asp-route-id="@data.Id">
+            <label>Note for the approver (optional) <textarea name="Comment" maxlength="2000"></textarea></label>
+            <button type="submit">Submit for approval</button>
+        </form>
+    }
+    else if (Model.Actor.IsAnalyst && d.Status == ChangeRequestStatus.Draft)
+    {
+        <p class="hint">Cannot submit yet: @actions.SubmitBlockedReason</p>
+    }
+
+    @if (actions.CanApprove)
+    {
+        <form method="post" asp-page-handler="Approve" asp-route-id="@data.Id" class="approve" data-approve-form>
+            <input type="hidden" name="RevisionId" value="@revision.Id" />
+            <p><strong>Approving publishes revision @revision.RevisionNumber immediately as version @(d.LatestVersionNumber + 1).</strong>
+                Quotes use it from the moment it commits.</p>
+            <label><input type="checkbox" name="Confirm" value="true" data-approve-confirm /> I have reviewed every change and ratio
+                above, and understand that approving makes these prices live now.</label>
+            <label>Comment (optional) <textarea name="Comment" maxlength="2000"></textarea></label>
+            <button type="submit" class="primary" data-approve-submit>Approve and publish</button>
+        </form>
+    }
+
+    @if (actions.CanReject)
+    {
+        <form method="post" asp-page-handler="Reject" asp-route-id="@data.Id">
+            <label>Reason for rejecting (required) <textarea name="Comment" maxlength="2000" required></textarea></label>
+            <button type="submit">Reject</button>
+        </form>
+    }
+
+    @if (!actions.CanApprove && Model.Actor.IsManager && d.Status == ChangeRequestStatus.Submitted && actions.ReviewBlockedReason is { } why)
+    {
+        <p class="hint">You cannot approve this: @why</p>
+    }
+
+    @if (actions.CanWithdraw)
+    {
+        <form method="post" asp-page-handler="Withdraw" asp-route-id="@data.Id">
+            <label>Reason for withdrawing (optional) <input name="Comment" maxlength="2000" class="wide" /></label>
+            <button type="submit">Withdraw</button>
+        </form>
+    }
+</section>
+
+<section class="card">
+    <h2>History</h2>
+    <ol class="history">
+        @foreach (var item in Model.History())
+        {
+            <li><span class="when">@item.When.ToString("yyyy-MM-dd HH:mm:ss") UTC</span> <strong>@item.Who</strong> @item.What
+                @if (item.Comment is not null) { <blockquote>@item.Comment</blockquote> }</li>
+        }
+    </ol>
+    @if (actions.CanComment)
+    {
+        <form method="post" asp-page-handler="Comment" asp-route-id="@data.Id">
+            <label>Add a comment <textarea name="Comment" maxlength="2000" required></textarea></label>
+            <button type="submit">Comment</button>
+        </form>
+    }
+</section>
+
+@section Scripts {
+    <script type="module" src="~/js/approve-form.js" asp-append-version="true"></script>
+}

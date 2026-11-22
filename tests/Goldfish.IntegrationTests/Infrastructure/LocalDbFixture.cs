@@ -38,6 +38,20 @@ public sealed class LocalDbFixture : IAsyncLifetime
             .BuildServiceProvider(validateScopes: true);
     }
 
+    /// <summary>The rules admin app's registrations, pointed at the test database.</summary>
+    public ServiceProvider CreateRulesAdminServices()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:RulesAdmin"] = ConnectionString })
+            .Build();
+
+        return new ServiceCollection()
+            .AddLogging()
+            .AddRulesAdminApplication()
+            .AddRulesAdminInfrastructure(configuration)
+            .BuildServiceProvider(validateScopes: true);
+    }
+
     public async ValueTask InitializeAsync()
     {
         await using var context = CreateDbContext();
@@ -58,6 +72,12 @@ public sealed class LocalDbFixture : IAsyncLifetime
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
+            DELETE rulesadmin.Approvals;
+            DELETE rulesadmin.ChangeRequestEvents;
+            DELETE rulesadmin.RevisionRules;
+            DELETE rulesadmin.Revisions;
+            DELETE rulesadmin.ChangeRequests;
+            UPDATE rulesadmin.RatioBand SET MinRatio = 0.8, MaxRatio = 1.25;
             DELETE pricing.Quotes;
             DELETE pricing.PricingRules;
             DELETE pricing.PricingRuleSetVersions;
@@ -65,7 +85,6 @@ public sealed class LocalDbFixture : IAsyncLifetime
             DELETE dbo.Policies;
             EXEC (N'DELETE dbo.PoliciesHistory;'); -- compiled only after versioning is off
             ALTER TABLE dbo.Policies SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = dbo.PoliciesHistory));
-            DELETE dbo.Products;
             """;
         await command.ExecuteNonQueryAsync();
     }

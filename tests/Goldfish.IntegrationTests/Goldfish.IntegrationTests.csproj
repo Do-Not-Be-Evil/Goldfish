@@ -28,6 +28,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Goldfish.Api\Goldfish.Api.csproj" />
     <ProjectReference Include="..\..\src\Goldfish.Infrastructure\Goldfish.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Goldfish.PricingAdmin\Goldfish.PricingAdmin.csproj" />
+    <ProjectReference Include="..\..\src\Goldfish.Web\Goldfish.Web.csproj" />
   </ItemGroup>
 
 </Project>

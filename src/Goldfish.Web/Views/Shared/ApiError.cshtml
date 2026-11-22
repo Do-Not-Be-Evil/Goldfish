@@ -1,0 +1,9 @@
+@model ApiProblem
+@{
+    ViewData["Title"] = "Service problem";
+    Context.Response.StatusCode = StatusCodes.Status502BadGateway;
+}
+<h1>The Goldfish API could not complete the request</h1>
+<p class="error">@Model.Status @Model.Title</p>
+@if (Model.Detail is not null) { <p>@Model.Detail</p> }
+<p><a asp-controller="Home" asp-action="Index">Back to the start page</a></p>

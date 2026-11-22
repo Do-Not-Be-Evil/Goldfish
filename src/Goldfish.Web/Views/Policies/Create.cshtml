@@ -1,0 +1,15 @@
+@model PolicyFormModel
+@{
+    ViewData["Title"] = "New policy";
+}
+<p><a asp-action="Index">← All policies</a></p>
+<h1>New policy</h1>
+
+<form asp-action="Create" method="post" class="card narrow-form" data-policy-form>
+    <partial name="_PolicyForm" model="Model" />
+    <button type="submit" class="primary">Create policy</button>
+</form>
+
+@section Scripts {
+    <script type="module" src="~/js/policy-form.js" asp-append-version="true"></script>
+}

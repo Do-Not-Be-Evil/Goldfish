@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# TypeScript output, compiled from src/Goldfish.Web/Scripts on build
+src/Goldfish.Web/wwwroot/js/

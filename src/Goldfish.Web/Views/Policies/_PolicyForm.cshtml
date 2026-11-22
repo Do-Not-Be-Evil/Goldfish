@@ -1,0 +1,27 @@
+@model PolicyFormModel
+@* Shared create/edit fields. data-original-* values let policy-form.ts show what changed before saving. *@
+<div asp-validation-summary="ModelOnly" class="error"></div>
+
+<label asp-for="PolicyType">Policy type
+    <select asp-for="PolicyType" data-original="@ViewData["OriginalType"]">
+        <option value="">Choose…</option>
+        @foreach (var t in PolicyFormModel.PolicyTypes)
+        {
+            <option value="@t">@t</option>
+        }
+    </select>
+</label>
+<span asp-validation-for="PolicyType" class="error"></span>
+
+<label asp-for="CoverageLimit">Coverage limit
+    <input asp-for="CoverageLimit" type="number" step="0.01" min="0.01" inputmode="decimal" data-original="@ViewData["OriginalCoverage"]" />
+</label>
+<span asp-validation-for="CoverageLimit" class="error"></span>
+
+<label asp-for="BasePrice">Base price
+    <input asp-for="BasePrice" type="number" step="0.01" min="0.01" inputmode="decimal" data-original="@ViewData["OriginalPrice"]" />
+</label>
+<span asp-validation-for="BasePrice" class="error"></span>
+
+<p id="policy-change-summary" class="hint" aria-live="polite"></p>
+<input type="hidden" asp-for="ETag" />

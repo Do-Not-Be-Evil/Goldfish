@@ -1,0 +1,34 @@
+@model PolicyEditViewModel
+@{
+    ViewData["Title"] = "Edit policy";
+    var baseline = Model.Current ?? Model.Original;
+    if (baseline is not null)
+    {
+        ViewData["OriginalType"] = baseline.PolicyType;
+        ViewData["OriginalCoverage"] = baseline.CoverageLimit.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        ViewData["OriginalPrice"] = baseline.BasePrice.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+}
+<p><a asp-action="Details" asp-route-id="@Model.Id">← Back to the policy</a></p>
+<h1>Edit policy</h1>
+
+@if (Model.Current is { } current)
+{
+    <section class="card warning">
+        <h2>Current saved values</h2>
+        <p>Type <strong>@current.PolicyType</strong>, coverage limit <strong>@current.CoverageLimit.ToString("#,0.00")</strong>,
+           base price <strong>@current.BasePrice.ToString("#,0.00")</strong>, changed by @current.ModifiedBy.</p>
+    </section>
+}
+
+<p class="hint">Base-price changes apply to the next quote and are recorded in the policy's history.
+    Rule multipliers are changed under Pricing changes, not here.</p>
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post" class="card narrow-form" data-policy-form>
+    <partial name="_PolicyForm" model="Model.Form" />
+    <button type="submit" class="primary">Save</button>
+</form>
+
+@section Scripts {
+    <script type="module" src="~/js/policy-form.js" asp-append-version="true"></script>
+}

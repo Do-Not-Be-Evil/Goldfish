@@ -1,0 +1,101 @@
+@page "{id:guid}"
+@model Goldfish.Web.Pages.Changes.EditModel
+@{
+    var data = Model.Details.Data;
+    ViewData["Title"] = $"Edit {data.Reference}";
+}
+<p><a asp-page="Details" asp-route-id="@data.Id">← Back to @data.Reference</a></p>
+<h1>Edit rules: @data.Title</h1>
+
+@if (!Model.Details.Actions.CanEdit)
+{
+    <p class="warning banner">This change request cannot be edited now (status: @Model.Details.Status).</p>
+    return;
+}
+
+<p class="hint">
+    The lowest priority number wins. Exactly one rule must be the catch-all (no policy type and no coverage limits),
+    and it must have the largest priority number. Saving creates a new revision; earlier revisions are kept.
+</p>
+
+@if (Model.Error is not null) { <p class="error banner" role="alert">@Model.Error</p> }
+
+<form method="post" asp-route-id="@data.Id" data-rule-editor>
+    <input type="hidden" asp-for="ExpectedRevision" />
+    <script type="application/json" id="rule-editor-data">@Html.Raw(Model.ClientData)</script>
+    <table class="edit">
+        <thead>
+            <tr><th>#</th><th>Name</th><th>Priority</th><th>Policy type</th><th>Coverage over</th><th>Coverage up to</th>
+                <th>Multiplier</th><th>Ratio</th><th>Reason</th><th></th></tr>
+        </thead>
+        <tbody data-rule-rows>
+            @for (var i = 0; i < Model.Rules.Count; i++)
+            {
+                var change = Model.ChangeFor(Model.Rules[i].Name);
+                var problems = Model.ProblemsFor(i).ToList();
+                <tr data-rule-row class="@(problems.Count > 0 ? "has-problem" : "")">
+                    <td data-row-number>@(i + 1)</td>
+                    <td><input asp-for="Rules[i].Name" maxlength="200" data-field="name" /></td>
+                    <td><input asp-for="Rules[i].Priority" type="number" min="1" class="narrow" /></td>
+                    <td>
+                        <select asp-for="Rules[i].PolicyType">
+                            <option value="">Any</option>
+                            <option value="Commercial">Commercial</option>
+                            <option value="Personal">Personal</option>
+                        </select>
+                    </td>
+                    <td><input asp-for="Rules[i].MinCoverageLimitExclusive" type="number" step="0.01" /></td>
+                    <td><input asp-for="Rules[i].MaxCoverageLimitInclusive" type="number" step="0.01" /></td>
+                    <td><input asp-for="Rules[i].Multiplier" type="number" step="0.0001" class="narrow" data-field="multiplier" /></td>
+                    <td data-ratio class="@(change?.Ratio is { } r && !Model.Details.Band.Contains(r) ? "out-of-band" : "")">
+                        @(change?.Ratio?.ToString("0.####") ?? (change?.Kind == RuleChangeKind.Added ? "new" : ""))
+                    </td>
+                    <td><input asp-for="Rules[i].Reason" maxlength="1000" data-field="reason"
+                               placeholder="@(change?.NeedsReason == true ? "Reason required" : "")"
+                               class="@(change?.MissingReason == true ? "needs-reason" : "")" /></td>
+                    <td><button type="submit" name="Action" value="remove:@i" class="link" data-remove-row>Remove</button></td>
+                </tr>
+                @foreach (var p in problems)
+                {
+                    <tr class="problem" data-problem-for="@i"><td></td><td colspan="9">@p.Message</td></tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    <template data-row-template>
+        <tr data-rule-row>
+            <td data-row-number></td>
+            <td><input name="Rules[__i__].Name" maxlength="200" data-field="name" /></td>
+            <td><input name="Rules[__i__].Priority" type="number" min="1" class="narrow" data-field="priority" /></td>
+            <td>
+                <select name="Rules[__i__].PolicyType">
+                    <option value="">Any</option>
+                    <option value="Commercial">Commercial</option>
+                    <option value="Personal">Personal</option>
+                </select>
+            </td>
+            <td><input name="Rules[__i__].MinCoverageLimitExclusive" type="number" step="0.01" /></td>
+            <td><input name="Rules[__i__].MaxCoverageLimitInclusive" type="number" step="0.01" /></td>
+            <td><input name="Rules[__i__].Multiplier" type="number" step="0.0001" class="narrow" value="1" data-field="multiplier" /></td>
+            <td data-ratio></td>
+            <td><input name="Rules[__i__].Reason" maxlength="1000" data-field="reason" /></td>
+            <td><button type="submit" name="Action" value="remove:__i__" class="link" data-remove-row>Remove</button></td>
+        </tr>
+    </template>
+
+    @foreach (var p in Model.Problems.Where(p => p.Row is null))
+    {
+        <p class="error">@p.Message</p>
+    }
+
+    <p>
+        <button type="submit" name="Action" value="add" data-add-row>Add rule</button>
+        <button type="submit" name="Action" value="check">Check changes</button>
+        <button type="submit" name="Action" value="save" class="primary">Save revision</button>
+    </p>
+</form>
+
+@section Scripts {
+    <script type="module" src="~/js/rule-editor.js" asp-append-version="true"></script>
+}

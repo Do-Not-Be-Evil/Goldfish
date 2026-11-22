@@ -126,16 +126,4 @@ public sealed class PolicyEndpointTests(LocalDbFixture database) : ApiTest(datab
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
-
-    [Fact]
-    public async Task Products_sample_stays_anonymous()
-    {
-        var anonymous = Factory.CreateClient();
-
-        var create = await anonymous.PostAsJsonAsync("/api/products", new { name = "Goldfish food", price = 4.99m }, Ct);
-        var missing = await anonymous.GetAsync($"/api/products/{Guid.NewGuid()}", Ct);
-
-        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-    }
 }

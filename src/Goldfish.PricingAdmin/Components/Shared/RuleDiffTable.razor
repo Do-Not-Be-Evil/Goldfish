@@ -1,0 +1,51 @@
+@* Field-level diff of a revision against its base version, with the multiplier ratio and the drafter's reasons. *@
+<table class="diff">
+    <thead>
+        <tr>
+            <th>Rule</th><th>Change</th><th>Priority</th><th>Policy type</th><th>Coverage over</th><th>Coverage up to</th>
+            <th>Multiplier</th><th>Ratio</th><th>Reason</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var c in Changes)
+        {
+            <tr class="kind-@c.Kind.ToString().ToLowerInvariant() @(c.MissingReason ? "needs-reason" : "")">
+                <td>@c.Name</td>
+                <td>@c.Kind</td>
+                <td class="@Cls(c, nameof(DraftRule.Priority))">@Pair(c, r => r.Priority.ToString())</td>
+                <td class="@Cls(c, nameof(DraftRule.PolicyType))">@Pair(c, r => r.PolicyType ?? "any")</td>
+                <td class="@Cls(c, nameof(DraftRule.MinCoverageLimitExclusive))">@Pair(c, r => Money(r.MinCoverageLimitExclusive))</td>
+                <td class="@Cls(c, nameof(DraftRule.MaxCoverageLimitInclusive))">@Pair(c, r => Money(r.MaxCoverageLimitInclusive))</td>
+                <td class="@Cls(c, nameof(DraftRule.Multiplier))">@Pair(c, r => r.Multiplier.ToString("0.####"))</td>
+                <td class="@(c.Ratio is { } ratio && !Band.Contains(ratio) ? "out-of-band" : "")">
+                    @(c.Ratio?.ToString("0.####") ?? (c.Kind == RuleChangeKind.Added ? "new" : ""))
+                </td>
+                <td>
+                    @if (c.HasReason) { @c.New!.Reason }
+                    else if (c.NeedsReason) { <span class="error">Reason required</span> }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+<p class="hint">
+    Ratio is the new multiplier divided by the old one. A rule that is new, or whose ratio is outside
+    @Band.MinRatio.ToString("0.####")–@Band.MaxRatio.ToString("0.####"), needs a written reason.
+</p>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<RuleChange> Changes { get; set; } = [];
+    [Parameter, EditorRequired] public RatioBand Band { get; set; } = RatioBand.Default;
+
+    private static string Cls(RuleChange c, string field) => c.ChangedFields.Contains(field) ? "changed" : "";
+
+    private static string Money(decimal? value) => value?.ToString("#,0.##") ?? "";
+
+    private static string Pair(RuleChange c, Func<DraftRule, string> value) => c switch
+    {
+        { Old: { } o, New: { } n } when value(o) != value(n) => $"{value(o)} → {value(n)}",
+        { New: { } n } => value(n),
+        { Old: { } o } => value(o),
+        _ => ""
+    };
+}

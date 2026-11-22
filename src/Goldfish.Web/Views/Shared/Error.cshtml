@@ -1,0 +1,6 @@
+@{
+    ViewData["Title"] = "Error";
+}
+<h1>Something went wrong</h1>
+<p>The request could not be completed. Nothing was published or saved by the failed request.</p>
+<p>Request ID: <code>@(System.Diagnostics.Activity.Current?.Id ?? Context.TraceIdentifier)</code></p>
