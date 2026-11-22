@@ -25,9 +25,15 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        builder.Services
-            .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-            .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+        //builder.Services
+        //    .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+        //    .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = OpenIdConnectDefaults.DisplayName;
+        });
 
         builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
         {
@@ -43,12 +49,12 @@ public class Program
             options.AccessDeniedPath = "/AccessDenied";
         });
 
-        builder.Services.AddAuthorizationBuilder()
-            .AddPolicy(WebRoles.PricingPolicy, p => p.RequireRole(WebRoles.Analyst, WebRoles.Manager))
-            .AddPolicy(WebRoles.PolicyEditPolicy, p => p.RequireRole(WebRoles.PolicyEditor))
-            .SetFallbackPolicy(new AuthorizationPolicyBuilder()
-                .RequireRole(WebRoles.Analyst, WebRoles.Manager, WebRoles.PolicyEditor)
-                .Build());
+        //builder.Services.AddAuthorizationBuilder()
+        //    .AddPolicy(WebRoles.PricingPolicy, p => p.RequireRole(WebRoles.Analyst, WebRoles.Manager))
+        //    .AddPolicy(WebRoles.PolicyEditPolicy, p => p.RequireRole(WebRoles.PolicyEditor))
+        //    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        //        .RequireRole(WebRoles.Analyst, WebRoles.Manager, WebRoles.PolicyEditor)
+        //        .Build());
 
         builder.Services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
         builder.Services.AddRazorPages(options => options.Conventions.AuthorizeFolder("/Changes", WebRoles.PricingPolicy));

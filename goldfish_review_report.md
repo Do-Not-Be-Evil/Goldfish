@@ -1,565 +1,737 @@
+Status: round 1 resolved (auto accept: Issues 1-9 and 11-13 applied; Issue 10 escalated, still open; Issues 14-19 declined). Round 2 resolved (auto accept: R2-1 to R2-5 and R2-7 to R2-12 applied; R2-6 escalated, still open; R2-13 to R2-15 declined). Round 3 resolved (auto accept: R3-1 to R3-5 and R3-7 to R3-11 applied; R3-6 escalated, still open; R3-12 to R3-14 declined). Round 4 resolved: the user chose to apply the fixes and run round 5. R4-1 to R4-4 and R4-6 to R4-15 were applied; R4-5 is escalated and still open; R4-16 was declined. Round 5 reached the cap; the user chose to continue past it. R5-1 to R5-6 were applied, plus these Nits: the double "detail", "They read the codebase", "decide it", the Inventory labels, wireframe labelling, and sub-items judged separately. Round 6 resolved: the user chose to apply the fixes and run round 7. R6-1 to R6-4 and the proposed Nits were applied. Round 7 resolved: the user chose to apply the fixes and run round 8. R7-1, R7-3 (overruling the settled R6 Nit), R7-4 to R7-7 and the proposed Nits were applied; R7-2 is escalated and still open. Round 8 resolved: the user chose to apply the fixes and run round 9. R8-1 to R8-5 and the proposed Nits were applied; R8-6 is escalated and still open. Round 9 resolved: the user chose to apply the fixes and run round 10. R9-1 and R9-3 to R9-5 were applied. R9-2 (must) and R9-6 (each standard governs its own areas) were applied with my default choices; R9-0 is escalated and still open. Round 10 resolved: R10-1 to R10-5 were applied. The user chose to stop the loop after round 10 (accepted past the cap). Still open: R10-6 (the companion-standard link, escalated) and the recorded Nits.
+
 # Goldfish Annotated Review Report
 
-**Status:** resolved — 24 fixes applied (auto accept); 3 escalated items and 1 contested item left unchanged.
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-96)
+**Round:** 1 of up to 5
+**Reviewers:** structural (completed), style (completed), comprehension (completed)
+**Raw findings:** 34 (structural 7, style 15, comprehension 12). After merging duplicates: 8 Major, 11 Nit, 0 Blocker.
 
-**Target:** [`docs/designs/policy-pricing-rules.md`](docs/designs/policy-pricing-rules.md) (full file, lines 1–1589)
-
-**Findings source:** [`consolidated_review_report.md`](consolidated_review_report.md), items C-B1 to C-N4, which merge the reports from Stages 5–9.
-
-**Author decisions applied:** these come from the same report.
-
-1. Matching stays in SQL.
-2. Policies keep their update operation, with added controls.
-3. API keys keep five permissions.
-4. Pricing changes are never tied to a time.
-
-**Summary:**
-
-| Category | Count | Items |
-| --- | --- | --- |
-| PROPOSE FIX | 24 | the rest |
-| ESCALATE | 3 | 15, 16, 17 |
-| CONTEST | 1 | 26 |
-| DECLINE | 0 | none |
+Round 1 is **not clean**: 8 Major findings are open.
 
 ## Prioritized Findings & AI Suggestions
 
-### [Issue 1] [`egm-inventive-catalyst`, `egm-zoom-out`, `egm-implementation-readiness`] - Severity: Blocker
+### [Issue 1] [`structural`, `style`, `comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 18-20](docs/ui_specification_standard.md#L18-L20), [Line 49](docs/ui_specification_standard.md#L49), [Lines 69-70](docs/ui_specification_standard.md#L69-L70) (State Coverage, Accessibility, Inventory)
+*   **Raw ids:** structural-1-1, style-1-3, comprehension-1-3
+*   **Discrepancy Description:** Each rule covers a different set of things:
+    *   State Coverage covers "every screen and every interactive component".
+    *   Accessibility covers "each screen or new component".
+    *   The Inventory covers "new or changed component".
+*   **Rationale:** A changed component appears to escape accessibility review, which is where regressions slip in. A reader can't tell whether the differences are deliberate.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Justification:*** All three reviewers raised this on their own. The fix uses the Inventory's wording ("new or changed") in both rules. Issue 2 settles how reused components are treated.
+*   ***Proposed Edit:*** The new scope wording is part of the edits for Issue 2 (State Coverage) and Issue 3 (Accessibility).
 
-* **Affected Scope:** Lines 147–172 (CUJ 3, CUJ 5); 256; 298–307 (Choosing the active version); 354–375 (Publishing a version); 1143–1149 (file 34); 1358–1368 (file 55); 1472–1497 (file 66)
-* **Discrepancy Description:** Publishing a full copy can silently undo another approved change. Suppose two scripts are prepared from version 1. The second publish overwrites the first one's change, and every check still passes. SERIALIZABLE combined with a MAX+1 version number is also likely to deadlock under concurrent publishes.
-* **Rationale:** This breaks G2 and the audit trail, and the version history makes the revert look intentional. (C-B1)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** The finding is valid, and the fix reuses the existing unique index on `VersionNumber`.
-* ***Proposed Edit:***
-  * **Location:** Publishing a version (parameters and steps)
-    * Add the required parameter `@BaseVersionNumber int`.
-    * Replace step 3 with: "Rejects the call with error 50003 unless `@BaseVersionNumber` equals the current highest version number, or is 0 when no version exists. The new version number is `@BaseVersionNumber + 1`. If two publishes from the same base run at once, the second violates the unique index on `VersionNumber` and is rolled back."
-    * Delete "Inside one `SERIALIZABLE` transaction" and "The `SERIALIZABLE` lock prevents…". Replace them with "Inside one transaction (`SET XACT_ABORT ON`)".
-  * **Location:** CUJ 3 and CUJ 5. Add "with `@BaseVersionNumber` = 1" (CUJ 3) and "= 2" (CUJ 5).
-  * **Location:** Add CUJ 7, "A stale script is rejected". Given that version 2 exists, when a script built on base 1 is run, then it fails with error 50003 and nothing is inserted.
-  * **Location:** File 34. Remove the SERIALIZABLE wording.
-  * **Location:** File 55. The template sets `@BaseVersionNumber` and carries a comment telling the reviewer to check it against the active-version endpoint.
-  * **Location:** File 66. Add two tests: a stale base is rejected with 50003, and two concurrent publishes on the same base produce exactly one new version.
+### [Issue 2] [`comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 18-32](docs/ui_specification_standard.md#L18-L32) (The State Coverage Rule)
+*   **Raw ids:** comprehension-1-1, comprehension-1-2
+*   **Discrepancy Description:** The rule doesn't say who decides whether a state applies, or whether a state that doesn't apply must be marked N/A. It also doesn't say how detailed the coverage must be: whether every reused button needs its own states, and whether every sub-case must be covered (Error alone has five).
+*   **Rationale:** Two reviewers can reach opposite verdicts on the same spec.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Justification:*** This is a comprehension gap, so it can't be contested.
+*   ***Proposed Edit:***
+    *   Location: lines 18-20
+    *   Change: replace with:
+        > Every screen, and every new or changed component, must define its behavior in each state that applies to it. A reused component keeps its existing state behavior and needs no entry unless this work changes how it behaves. Within each category below, cover each listed case that can occur. Mark a case that a reader would expect but that cannot occur as "N/A", with a one-line reason. The reviewer decides whether a case is reachable. The specification fails this standard if any of the following is reachable but undefined:
 
-### [Issue 2] [`egm-implementation-readiness`, `egm-codebase-details`, `egm-style`, `egm-comprehension`] - Severity: Blocker
+### [Issue 3] [`structural`, `comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 46-61](docs/ui_specification_standard.md#L46-L61) (The Accessibility Rule)
+*   **Raw ids:** structural-1-2, comprehension-1-5 (part)
+*   **Discrepancy Description:** The State Coverage and Reuse rules each say when a spec "fails this standard". The Accessibility Rule only says "must state", so it has no fail condition and no way to mark an item N/A.
+*   **Rationale:** Accessibility is the rule most likely to be put off as a follow-up task, yet it is the only rule without a pass/fail trigger.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:***
+    *   Location: lines 48-49
+    *   Change: replace with:
+        > Accessibility requirements are part of the specification, not a follow-up task. The specification must state the following for each screen and each new or changed component. It fails this standard if any item is missing for a screen or component in scope. Mark an item that does not apply (for example, Motion where nothing animates) as "N/A", with a one-line reason.
 
-* **Affected Scope:** Lines 156–162 (CUJ 4); 354–375; 1143–1149 (file 34); 1388–1389 (file 57); 1472–1497 (file 66); 1576–1577
-* **Discrepancy Description:** The procedure's contract is undefined. The following are missing:
-  * the columns of the table-valued parameter (TVP);
-  * the parameter types;
-  * how the new version number is returned;
-  * whether blank values are rejected.
+### [Issue 4] [`style`, `comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 39-44](docs/ui_specification_standard.md#L39-L44), [Lines 94-96](docs/ui_specification_standard.md#L94-L96) (The Reuse Rule, Out of Scope)
+*   **Raw ids:** style-1-4, comprehension-1-4, style-1-11, style-1-10, comprehension-1-10 (part)
+*   **Discrepancy Description:** Line 43 tells reviewers to check the codebase, but line 94 says the standard "reviews the written specification only".
+    *   "With paths" doesn't say what the paths point to.
+    *   "Duplicates" has no threshold.
+    *   "Cannot be extended" doesn't rule out using the existing item as it is.
+    *   Nothing says what a reviewer without codebase access should conclude.
+    *   "Hooks" is React vocabulary.
+    *   The rule assumes a design system exists.
+*   **Rationale:** As written, the Reuse Rule can't be applied the same way twice.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:***
+    *   Location: lines 39-44
+    *   Change: replace with:
+        > The specification must name the existing design-system components, tokens, hooks (or the framework's equivalent shared logic), and layout primitives it uses, each with its source path in the repository. If the product has no design system, the specification says so. It fails this standard if it introduces a new component, color, spacing value, or typography style that duplicates an existing one (serves the same purpose, or differs only by a value users would not notice), unless it gives a concrete reason the existing one can neither be used as it is nor be extended. Reviewers with codebase access must verify every claim that a component "does not exist." Reviewers without codebase access record the Reuse Rule as unverified, not passed.
+    *   Location: line 94
+    *   Change: replace the first sentence with:
+        > This standard reviews the written specification, and the code it references only to check Reuse Rule claims.
 
-  The "THROW 50001–50005" codes map to steps that are not checks. Most rejections actually come from constraints, which raise error 547, 2601, or 2627.
-* **Rationale:** Five files depend on this contract, so an implementer would end up designing it. (C-B2)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid. The fix also covers how `@DryRun` returns its results (Issue 3).
-* ***Proposed Edit:***
-  * **Location:** Publishing a version. Add a "Procedure contract" subsection with three parts.
-    * **TVP `pricing.PricingRuleInput`:**
-      * `Priority int NOT NULL`
-      * `Name nvarchar(200) NOT NULL`
-      * `PolicyType nvarchar(32) COLLATE Latin1_General_BIN2 NULL`
-      * `MinCoverageLimitExclusive decimal(18,2) NULL`
-      * `MaxCoverageLimitInclusive decimal(18,2) NULL`
-      * `Multiplier decimal(9,4) NOT NULL`
-    * **Signature:**
-      * `@ChangeTicketRef nvarchar(64)`
-      * `@ApprovedBy nvarchar(128)`
-      * `@BaseVersionNumber int`
-      * `@DryRun bit = 0`
-      * `@Rules pricing.PricingRuleInput READONLY`
-      * `@NewVersionNumber int OUTPUT`
-    * **Error table:**
+### [Issue 5] [`comprehension`, `structural`, `style`] - Severity: Major
+*   **Affected Scope:** [Lines 63-65](docs/ui_specification_standard.md#L63-L65) (Requirements)
+*   **Raw ids:** comprehension-1-5, structural-1-3, style-1-14
+*   **Discrepancy Description:** The lead-in says "must detail", but the heading says "Non-Exhaustive Examples" and the lead-in adds "if applicable". A reader can't tell whether leaving out an area fails the spec. The list also doesn't mention the three rules, so a reviewer using it as a checklist would skip them.
+*   **Rationale:** Pass/fail is unclear. The baseline standard has the same ambiguity, and this standard inherits it.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Justification:*** This fixes the ambiguity here only. `feature-spec-standard.md` is out of this review's scope.
+*   ***Proposed Edit:***
+    *   Location: line 65
+    *   Change: replace with:
+        > The specification must detail each of these areas that applies to the changes. Leaving out an area that applies fails this standard. The list is non-exhaustive: an area not listed here that the work clearly needs must also be covered. The three rules above apply to every UI specification, whether or not their topic appears in this list.
 
-      | Rejected condition | Where it is enforced | Error |
-      | --- | --- | --- |
-      | Blank ticket reference or approver | THROW | 50001 |
-      | Empty rule set | THROW | 50002 |
-      | Stale base version | THROW | 50003 |
-      | Not exactly one catch-all rule | THROW | 50004 |
-      | Catch-all does not have the largest priority number | THROW | 50005 |
-      | Priority below 1 | `CK_PricingRules_Priority_Min` | 547 |
-      | Multiplier not above 0 | `CK_PricingRules_Multiplier_Positive` | 547 |
-      | Minimum not below maximum | `CK_PricingRules_CoverageRange` | 547 |
-      | Unknown policy type | `CK_PricingRules_PolicyType` | 547 |
-      | Duplicate priority | `UX_PricingRules_Version_Priority` | 2601 |
-      | Duplicate name | `UX_PricingRules_Version_Name` | 2601 |
-      | Duplicate ticket reference | `UX_PricingRuleSetVersions_ChangeTicketRef` | 2601 |
-  * **Location:** Steps 1–5. Rewrite them to match the error table.
-  * **Location:** CUJ 4. Change the outcome to "raises the error listed for that condition in the error table".
-  * **Location:** File 34. Point to the error table, and replace "THROW 50001–50005 per step".
-  * **Location:** File 57. Point to the error table.
-  * **Location:** File 66. Each case asserts the error number from the table.
-  * **Location:** Line 1576. Change the coverage requirement to "every row of the error table has a test".
+### [Issue 6] [`comprehension`, `style`, `structural`] - Severity: Major
+*   **Affected Scope:** [Lines 3-6](docs/ui_specification_standard.md#L3-L6) (introduction)
+*   **Raw ids:** comprehension-1-6, style-1-5
+*   **Discrepancy Description:** "Use it alongside" doesn't say whether a UI spec is one document that must pass both standards. The word "still" implies a history the reader doesn't have. The list of areas the other standard governs leaves out Proposed Architecture, which overlaps with State & Data.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Justification:*** The path to `feature-spec-standard.md` depends on where this file will live, so that part is Issue 10 (ESCALATE).
+*   ***Proposed Edit:***
+    *   Location: lines 3-6
+    *   Change: replace with:
+        > This standard defines the quality bar for specifications of user-facing interface work (screens, flows, and components) before implementation begins. A UI specification is one document that must pass both this standard and `feature-spec-standard.md`. That standard governs the problem statement, goals, proposed architecture, alternatives, and risks; this one adds the UI rules below. Where both ask for the same thing (for example, State & Data and Proposed Architecture), one section of the specification can satisfy both.
 
-### [Issue 3] [`egm-zoom-out`, `egm-inventive-catalyst`, `egm-design`, `egm-structural`] - Severity: Major
+### [Issue 7] [`style`, `comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 80-82](docs/ui_specification_standard.md#L80-L82) (Copy), against [Lines 10-14](docs/ui_specification_standard.md#L10-L14) and [Lines 26-27](docs/ui_specification_standard.md#L26-L27)
+*   **Raw ids:** style-1-1, comprehension-1-9
+*   **Discrepancy Description:** The Copy item allows "placeholder text". The Core Principle forbids guessing at copy, and State Coverage requires "the message shown".
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:***
+    *   Location: lines 80-82
+    *   Change: replace with:
+        > *   **Copy**: Final text for labels, buttons, empty states, and errors. Placeholder text is acceptable only when it is marked as a placeholder and states what the final text must say. State whether strings go through localization, and note right-to-left and text-expansion handling if the product is localized.
 
-* **Affected Scope:** Lines 44–48; 196; 473–475; 649–659; 782–785; 1358–1368
-* **Discrepancy Description:** Nothing checks the headline mistake (15 instead of 1.5) before it goes live. Dry run is neither in scope nor listed as a non-goal. (C-M1)
-* **Rationale:** The most likely real error goes straight to customers.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid. `@DryRun` is the smallest control that addresses it.
-* ***Proposed Edit:***
-  * **Location:** Publishing a version. Add a step:
-    > "When `@DryRun = 1`, the procedure runs every check and then returns one row per rule: Name, old Multiplier, new Multiplier, Ratio, and Change (`Added`, `Removed`, `Changed`, or `Unchanged`). Rules are matched to the base version by `Name`, which is unique per version. It then rolls back. The ticket reviewer attaches this output to the ticket."
-  * **Location:** Data model, PricingRules. Add the unique index (VersionId, Name).
-  * **Location:** Goals. Add to G6: "A dry run shows each multiplier change against the live version before publishing."
-  * **Location:** Accepted risks. Reword the "Large typos pass" mitigation to: "the dry-run diff in the ticket shows the ratio, and the review catches it".
-  * **Location:** Future Improvements. Remove "diff report". Change "alert on multiplier jumps" to "automatic ratio threshold".
-  * **Location:** File 55. The template runs the procedure with `@DryRun = 1` first.
-  * **Location:** File 66. Add a dry-run test: the diff rows are correct and no version is inserted.
+### [Issue 8] [`style`, `comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 28-29](docs/ui_specification_standard.md#L28-L29) (Disabled and read-only)
+*   **Raw ids:** style-1-2 (Major), comprehension-1-7 (Nit). The higher severity is kept.
+*   **Discrepancy Description:** "when controls are unavailable and why the user is told they are" is hard to parse.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:***
+    *   Change: replace with:
+        > *   **Disabled and read-only**: which controls are unavailable under which conditions, and how the user is told why.
 
-### [Issue 4] [`egm-zoom-out`, `egm-implementation-readiness`, `egm-codebase-details`, `egm-style`, `egm-design`] - Severity: Major
+### [Issue 9] [`comprehension`, `style`] - Severity: Nit (merged)
+*   **Affected Scope:** [Line 59](docs/ui_specification_standard.md#L59), [Lines 78-79](docs/ui_specification_standard.md#L78-L79), [Lines 51-52](docs/ui_specification_standard.md#L51-L52)
+*   **Raw ids:** comprehension-1-8, style-1-13, comprehension-1-10 (part), structural-1-7
+*   **Discrepancy Description:**
+    *   "Unless stated otherwise" has no owner.
+    *   "Target sizes" has no threshold.
+    *   "Supported breakpoints" aren't defined anywhere.
+    *   "Keyboard shortcuts" reads as if every screen must have them.
+    *   WCAG has no link.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:***
+    *   Line 51: "tab order, any keyboard shortcuts, and that every action is reachable without a pointer."
+    *   Line 59: "contrast targets ([WCAG 2.2](https://www.w3.org/TR/WCAG22/) AA unless the specification states a different target and why), behavior at 200% zoom, and that no information is conveyed by color alone."
+    *   Lines 78-79:
+        > *   **Responsive Behavior**: Layout at each supported breakpoint (listed in the specification, or linked to where they are defined) and on touch devices, including target sizes (at least 24 by 24 CSS pixels, per WCAG 2.2 success criterion 2.5.8, unless stated otherwise) and what collapses or hides.
 
-* **Affected Scope:** Lines 194; 309–352; 627–634; 865–880; 1177–1191; 1074; 1130
-* **Discrepancy Description:** Matching stays in SQL (author decision 1). The fixes this needs are:
-  * The `MatchRow` mapping is broken: the flag is an int, the column name doesn't match, and nulls are not handled.
-  * `SqlQuery` and `SqlQueryRaw` are both used for the same thing.
-  * The collation claim is wrong, because a case-insensitive CHECK accepts `commercial`.
-  * Alternative M has no trade-off sentence.
+### [Issue 10] [`structural`, `comprehension`] - Severity: Nit
+*   **Affected Scope:** the file name and location; [Line 5](docs/ui_specification_standard.md#L5)
+*   **Raw ids:** structural-1-5, comprehension-1-6 (part)
+*   **Discrepancy Description:** The file uses snake_case, and it lives in `C:\Goldfish\docs`. Every sibling standard is a kebab-case `*-standard.md` file in the plugin's `resources/document_standards/`. The bare reference `feature-spec-standard.md` therefore points to no file from this location.
+*   ***AI Suggestion:*** ESCALATE
+*   ***Justification:*** Where this standard should live is your decision, and nothing in the files tells me:
+    *   in the project (and then which copy of the feature-spec standard it links to);
+    *   in your own EGM plugin copy;
+    *   as a contribution upstream.
+    *   Also: do you want it renamed to `ui-spec-standard.md`?
+*   ***Proposed Edit:*** none until you decide.
 
-  (C-M2)
-* **Rationale:** As written, every quote would fail at runtime.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid, within the decision to keep SQL.
-* ***Proposed Edit:***
-  * **Location:** The matching SQL. Change the IsCatchAll expression to `CAST(CASE … END AS bit)`.
-  * **Location:** Line 312. Change `SqlQueryRaw` to `SqlQuery` (FormattableString, with values passed as interpolation holes).
-  * **Location:** Lines 347–348. Replace the sentence with:
-    > "Both `PolicyType` columns use the binary collation `Latin1_General_BIN2`, so the CHECK rejects `commercial`, and the SQL comparison is case-sensitive like C#'s."
-  * **Location:** Data model. Add `COLLATE Latin1_General_BIN2` to `PolicyType` in Policies, PricingRules, and Quotes.
-  * **Location:** File 38. Declare `private sealed record MatchRow(Guid VersionId, int VersionNumber, Guid? RuleId, string? Name, int? Priority, decimal? Multiplier, bool? IsCatchAll)`. Map `Name` to `RuleName`.
-  * **Location:** Files 28 and 33. Add `.UseCollation("Latin1_General_BIN2")` on PolicyType.
-  * **Location:** Alternative M. Add to the reason:
-    > "Matching in SQL keeps the precedence logic next to the constraints it relies on. The cost is that edge cases are tested only against LocalDB, so CI must run on Windows."
+### [Issue 11] [`style`, `comprehension`] - Severity: Nit
+*   **Affected Scope:** [Lines 30-32](docs/ui_specification_standard.md#L30-L32)
+*   **Raw ids:** style-1-7, style-1-8, comprehension-1-11
+*   **Discrepancy Description:** Missing images aren't overflow, and leaving a page mid-action isn't concurrency.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Rename the labels to "**Overflow and missing content**" and "**Concurrency and interruption**". The bullet text stays the same.
 
-### [Issue 5] [`egm-zoom-out`, `egm-structural`, `egm-codebase-details`] - Severity: Major
+### [Issue 12] [`style`, `comprehension`] - Severity: Nit
+*   **Affected Scope:** [Lines 71-72](docs/ui_specification_standard.md#L71-L72) (Visual Reference)
+*   **Raw ids:** style-1-12, comprehension-1-12
+*   **Discrepancy Description:** "Precise text description" gives no test for what counts as precise.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Replace "or a precise text description of layout where none exist" with "or, where none exist, a text description of the layout that gives each region, its order, its alignment, and its size relative to existing layout primitives".
 
-* **Affected Scope:** Lines 174–181; 240–249; 389; 478–482; 683–693; 967–976; 1066–1080; 1164–1167; 1452–1455; 1525–1536
-* **Discrepancy Description:** Policies keep their update operation (author decision 2). The fixes this needs are:
-  * Nothing records who changed a policy.
-  * Concurrent edits overwrite each other (last write wins).
-  * The temporal configuration syntax is wrong.
-  * The update's return type is undefined.
+### [Issue 13] [`style`] - Severity: Nit
+*   **Affected Scope:** [Line 61](docs/ui_specification_standard.md#L61) (Motion)
+*   **Raw ids:** style-1-9 (part)
+*   **Discrepancy Description:** The Motion item states a requirement, but the lead-in asks for things the spec must *state*.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "*   **Motion**: how each animation behaves when the user has asked for reduced motion."
 
-  (C-M3)
-* **Rationale:** A base-price change can't be traced to whoever made it.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid. The fix applies the controls the author chose.
-* ***Proposed Edit:***
-  * **Location:** Data model, Policies. Add two columns:
-    * `ModifiedBy nvarchar(64) NOT NULL`, set to the caller's key name on create and update.
-    * `RowVersion rowversion`.
-  * **Location:** API table, `PUT`.
-    * The request requires an `If-Match` header carrying the ETag (base64 RowVersion) returned by GET and POST.
-    * It returns 200 with PolicyResponse and a new ETag.
-    * It returns 412 `Policy.Concurrency` when the RowVersion doesn't match.
-    * It returns 428 when `If-Match` is missing.
-  * **Location:** CUJ 6.
-    * Add "with `If-Match` of the current ETag".
-    * Add "History keeps the earlier row, with its ModifiedBy".
-    * Add a second Then: "A PUT with an old ETag returns 412."
-  * **Location:** Accepted risks.
-    * Delete "Last write wins".
-    * Reword "Unreviewed base-price edits" to add "each edit records ModifiedBy in the history".
-  * **Location:** File 4. Add `ModifiedBy` to `Create` and `Update`.
-  * **Location:** File 5. Add `Concurrency` (Validation-type, mapped to 412 by a new `ErrorType.Conflict`).
-  * **Location:** File 14. Add `ETag` to PolicyResponse.
-  * **Location:** File 17. The command carries `ExpectedRowVersion` and `ModifiedBy`. The handler sets the original RowVersion value and maps `DbUpdateConcurrencyException` to `Policy.Concurrency`. It returns `Result<PolicyResponse>`.
-  * **Location:** File 28.
-    * Use `ToTable("Policies", tb => { tb.IsTemporal(t => { … }); tb.HasCheckConstraint(…); })`.
-    * Add `Property(p => p.RowVersion).IsRowVersion()`.
-  * **Location:** File 44. Map `ErrorType.Conflict` to 412.
-  * **Location:** File 46. Read `If-Match`, and set the `ETag` response header.
-  * **Location:** File 69. Add tests for a stale ETag returning 412, a missing If-Match returning 428, and ModifiedBy appearing in history.
+### [Issue 14] [`style`] - Severity: Nit
+*   **Raw ids:** style-1-6
+*   **Discrepancy Description:** The Core Principle (lines 10-14) is a single 45-word sentence.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** It mirrors the single-sentence test in the sibling standard and reads in one pass.
 
-### [Issue 6] [`egm-zoom-out`, `egm-inventive-catalyst`, `egm-design`, `egm-implementation-readiness`] - Severity: Major
+### [Issue 15] [`style`] - Severity: Nit
+*   **Raw ids:** style-1-9 (rest)
+*   **Discrepancy Description:** Some Accessibility items are noun phrases and others are "that ..." clauses.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** The meaning is clear. Issue 13 fixes the one item that changed the meaning.
 
-* **Affected Scope:** Lines 377–379; 743–744; 756–758; 1150–1155
-* **Discrepancy Description:** `READ_COMMITTED_SNAPSHOT` changes the whole database, needs ALTER DATABASE, ends connections, and cannot be undone by `Down`. Its stated reason is also wrong. (C-M4)
-* **Rationale:** Rows are only ever inserted, and each publish is one transaction. So the default READ COMMITTED isolation already prevents a quote from reading half a version.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid. Removing the setting also removes its permission and rollback problems.
-* ***Proposed Edit:***
-  * **Location:** Lines 377–379. Replace them with:
-    > "Rules are only ever inserted, and each version is inserted in one transaction, so under SQL Server's default READ COMMITTED isolation a quote reads either the whole previous version or the whole new one. At worst a quote waits a few milliseconds for a publish to commit."
-  * **Location:** NFR. Delete the RCSI performance bullet, the RCSI rollout bullet (`WITH ROLLBACK IMMEDIATE`), and the RCSI part of rollout step 1.
-  * **Location:** File 34. Delete sub-step 3, the `ALTER DATABASE`, and the related `Down` note.
+### [Issue 16] [`style`] - Severity: Nit
+*   **Raw ids:** style-1-15
+*   **Discrepancy Description:** Flows are named in scope at line 4 but not in the State Coverage Rule.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** Each step of a flow is a screen, which State Coverage covers. User Flows (line 67) already asks for exits and back/cancel behavior.
 
-### [Issue 7] [`egm-zoom-out`, `egm-design`, `egm-codebase-details`, `egm-implementation-readiness`] - Severity: Major
+### [Issue 17] [`structural`] - Severity: Nit
+*   **Raw ids:** structural-1-4
+*   **Discrepancy Description:** This standard has an Out of Scope section and no Risks & Limits section, which is the reverse of the sibling standard.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** The reviewer itself judged this acceptable. Issue 6 makes clear that risks are governed by the feature-spec standard.
 
-* **Affected Scope:** Lines 85–86; 434–450; 661–668; 734–736; 1211–1245; 1275–1277; 1306; 1313–1316
-* **Discrepancy Description:** API keys keep five permissions (author decision 3). The fixes this needs are:
-  * There is no fallback policy, so a new endpoint is open until someone adds `[Authorize]` to it.
-  * Several handler details are left undefined: name length, claim type, authentication type, how options bind, hex comparison, and the options source.
-  * Key strength, HTTPS, and rotation are not stated.
-  * Alternative P weighs only setup cost.
+### [Issue 18] [`structural`] - Severity: Nit
+*   **Raw ids:** structural-1-6
+*   **Discrepancy Description:** Bullet text after the bold label is lowercase in the rule lists and capitalised in Requirements.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** This is cosmetic. The two lists are fragments and sentences respectively.
 
-  (C-M5)
-* **Rationale:** Several of these fail silently and treat callers as anonymous.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid, within the decision to keep API keys.
-* ***Proposed Edit:***
-  * **Location:** NFR Security. Replace "No global authorization policy…" with:
-    > "A fallback authorization policy requires an authenticated caller on every endpoint. `ProductsController` is marked `[AllowAnonymous]`."
-  * **Location:** API key authentication. Add:
-    > "Keys are 32 random bytes, encoded as base64url. Keys are sent only over HTTPS. Configuration is read at startup, so rotating a key needs a restart."
-  * **Location:** File 41.
-    * Use properties `{ get; set; }`.
-    * Initialize `Keys = new()`.
-    * Validate that `Name` is 1–64 characters (matching `RequestedBy`/`ModifiedBy`).
-  * **Location:** File 43.
-    * The constructor takes `IOptionsMonitor<ApiKeyOptions>`.
-    * Hashes are compared with `Convert.FromHexString(entry.KeyHash)` and `CryptographicOperations.FixedTimeEquals`.
-    * Create the principal as `new ClaimsIdentity(claims, "ApiKey")` with `ClaimTypes.Name`.
-  * **Location:** File 46. Read the caller as `User.Identity?.Name ?? throw new InvalidOperationException()`.
-  * **Location:** File 49. Add `.SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())`.
-  * **Location:** File 45. Add `[AllowAnonymous]`.
-  * **Location:** File 52. Use `https://localhost:7258`.
-  * **Location:** Alternative P. Add:
-    > "API keys were kept because no identity provider has been confirmed for these callers. The accepted cost is that keys identify calling systems, not people, and rotation is manual."
-  * **Location:** Add a new Alternative V, "Two roles instead of five permissions". Pros: less configuration. Cons: less control over what each key can do. Rejected by author: separate permissions let a quoting system be denied policy writes.
+### [Issue 19] [`style`] - Severity: Nit
+*   **Raw ids:** style-1-14
+*   **Discrepancy Description:** "If any" (line 87) repeats "if applicable".
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** After the Issue 5 change, "if any" says that emitting no events is a valid answer, which is a different point.
 
-### [Issue 8] [`egm-zoom-out`, `egm-design`, `egm-implementation-readiness`, `egm-codebase-details`, `egm-style`] - Severity: Major
+---
 
-* **Affected Scope:** Lines 452–467; 473–475; 779; 931–937; 991–1015; 1047–1055
-* **Discrepancy Description:** The quote metric has no exporter, and `AddMetrics()` won't compile in the Application project. Catch-all quotes logged at Warning would become noise. The handler's error log can never be reached. (C-M6)
-* **Rationale:** This adds code that no one can see, and the build breaks.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid. The data already stored covers the monitoring need.
-* ***Proposed Edit:***
-  * **Location:** Logging and visibility. Replace the Warning sentence and the metric sentence with:
-    > "Quotes priced by the catch-all are logged at Information with `WasCatchAll = true`. Operators monitor the catch-all rate and per-version volume with a query over `pricing.Quotes` grouped by VersionNumber and WasCatchAll, documented in the runbook."
-  * **Location:** Delete file 20 (`QuoteMetrics.cs`). Remove `Diagnostics.Abstractions` from file 13. Remove `AddSingleton<QuoteMetrics>()` and `AddMetrics()` from file 26.
-  * **Location:** File 21. Split the steps into two paths.
-    * **Success path:** load, match, create, save, then log Information with the template `"Quote {QuoteId} for policy {PolicyId} priced by version {VersionNumber} rule {RuleId} (catch-all {WasCatchAll}) multiplier {Multiplier} final {FinalPrice} for {RequestedBy}"`.
-    * **Failure path:** before returning, log by error.
-      * `Policy.NotFound`: Information.
-      * `Pricing.NoActiveVersion`: Warning.
-      * `Pricing.InvalidActiveVersion`: Error.
+# Round 2
 
-      Each log includes PolicyId and RequestedBy.
-  * **Location:** Alternative I and Accepted risks. Replace "logged at Warning" and "metric" with "flagged by `WasCatchAll` and the runbook query".
-  * **Location:** Future Improvements. Add "Metrics exported through OpenTelemetry".
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-124)
+**Reviewers:** structural (completed: 0 Major, 6 Nit), style (completed: 3 Major, 7 Nit), comprehension (completed: 7 Major, 5 Nit)
+**After merging duplicates:** 6 Major, 9 Nit, 0 Blocker. Round 2 is **not clean**.
 
-### [Issue 9] [`egm-design`, `egm-codebase-details`, `egm-implementation-readiness`, `egm-style`] - Severity: Major
+**Reopened from round 1.** R2-2, R2-3 and R2-4 sit on text that round 1 added. Undoing those fixes would bring back the round 1 problems instead of solving these, so this is not churn. The round 1 fixes were not precise enough.
 
-* **Affected Scope:** Lines 75–77; 356–363; 381–395; 1335–1356; 1545–1558
-* **Discrepancy Description:** The publisher can't declare the TVP without a grant on the type. The API login has no rights on `dbo.Products`, which breaks today's endpoints. G5 overstates its guarantee. The migrator's rights are not listed as a risk, and the schema owner is not stated. (C-M7)
-* **Rationale:** The first publish fails, and the existing endpoints break.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** G5. Replace with:
-    > "**G5. Rule history cannot be rewritten through normal access.** No login used by the API or by ticket scripts can update or delete published rules or quotes, and SQL Server enforces this with permissions. Each version records the change ticket that approved it. Logins with db_owner, sysadmin, or schema-change rights are an accepted risk."
-  * **Location:** Permissions table.
-    * API row: add "SELECT, INSERT on `dbo.Products`".
-    * Publisher row: add "EXECUTE on TYPE::`pricing.PricingRuleInput`".
-    * Add the sentence: "The `pricing` schema and all its objects are owned by `dbo`, which ownership chaining requires."
-  * **Location:** Accepted risks. Add:
-    > "The migrator login can alter tables or the procedure. Migrations are code-reviewed and run only during deployments."
-  * **Location:** Files 53, 54, and 71. Add both grants. Test 71 asserts that the publisher can declare the type and that the API user can read Products.
+## Prioritized Findings & AI Suggestions
 
-### [Issue 10] [`egm-implementation-readiness`, `egm-codebase-details`, `egm-style`] - Severity: Major
+### [R2-1] [`comprehension`, `style`, `structural`] - Severity: Major
+*   **Affected Scope:** [Lines 21-27](docs/ui_specification_standard.md#L21-L27), [Lines 61-64](docs/ui_specification_standard.md#L61-L64), [Lines 82-85](docs/ui_specification_standard.md#L82-L85)
+*   **Raw ids:** comprehension-2-1, -2-2, -2-3, -2-10, style-2-3, structural-2-5
+*   **Discrepancy Description:**
+    *   "Every screen" has no limit. Adding one button to an existing screen seems to require full coverage of that screen.
+    *   "Changed" means "changes how it behaves" in one place and just "changed" in another.
+    *   The N/A rule differs between State Coverage ("a case a reader would expect") and Accessibility ("an item that does not apply"). A missing N/A mark has no consequence.
+    *   Only State Coverage says who decides; Accessibility and Requirements don't.
+    *   It isn't clear whether N/A can be applied to sub-cases (for example, the Focus events).
+*   **Rationale:** Two reviewers reach different verdicts on the same spec.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Justification:*** Put scope, N/A and who decides in one place, and have all three rules refer to it.
+*   ***Proposed Edit:***
+    *   Add a new section after the Core Principle:
+        > ## Scope and Applicability
+        >
+        > The rules below cover the following, which this standard calls "in scope":
+        >
+        > *   each new screen;
+        > *   on an existing screen, only the parts the work adds or changes;
+        > *   each new component;
+        > *   each existing component whose behavior, appearance, or copy the work changes.
+        >
+        > A reused component that the work does not change keeps its existing behavior and needs no entry.
+        >
+        > The reviewer decides whether a listed case, item, or area applies. Mark each listed case, sub-case, or item that cannot occur as "N/A", with a one-line reason. A missing N/A mark on something the reviewer agrees cannot occur is a Nit, not a failure.
+    *   State Coverage (lines 21-27): replace with "Everything in scope must define its behavior in each state that applies to it. Within each category below, cover each listed case that can occur. The specification fails this standard if any of the following is reachable but undefined:"
+    *   Accessibility (lines 61-64): replace the two sentences after the first with "The specification must state the following for everything in scope. It fails this standard if any item that applies is missing."
 
-* **Affected Scope:** Lines 1335–1346; 1545–1559
-* **Discrepancy Description:** The grant script's sqlcmd variables, its batches, and the claim that it can be re-run safely don't work with an ADO.NET test. (C-M8)
-* **Rationale:** The implementer would have to write a sqlcmd runner.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** File 53.
-    * "Variables `$(ApiUser)` and `$(PublisherUser)` are database user names."
-    * "Each user is created `FOR LOGIN` only when a login with that name exists and the user does not, checked in `sys.database_principals`."
-    * "The script contains no `GO` separators, so it runs as a single batch."
-  * **Location:** File 71. Change to:
-    > "The test reads the script and replaces `$(ApiUser)`/`$(PublisherUser)` with `api_test`/`publisher_test`. It runs the script twice through `SqlCommand` and asserts the second run succeeds, then runs the checks."
-  * **Location:** Line 1558. Delete "The grant script is tested, not just written."
+### [R2-2] [`style`] - Severity: Major (reopened from round 1, Issue 4)
+*   **Affected Scope:** [Lines 51-53](docs/ui_specification_standard.md#L51-L53)
+*   **Discrepancy Description:** "Differs only by a value users would not notice" can't be measured.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Replace "(serves the same purpose, or differs only by a value users would not notice)" with "(serves the same purpose as an existing one, whatever its exact values; the reviewer decides)".
 
-### [Issue 11] [`egm-implementation-readiness`, `egm-codebase-details`, `egm-structural`] - Severity: Major
+### [R2-3] [`style`, `comprehension`] - Severity: Major (reopened from round 1, Issue 5)
+*   **Affected Scope:** [Lines 82-86](docs/ui_specification_standard.md#L82-L86)
+*   **Raw ids:** style-2-2, comprehension-2-6, style-2-N3, structural-2-1
+*   **Discrepancy Description:**
+    *   "An area ... that the work clearly needs" has no test, so any reviewer can fail a spec on their own judgment.
+    *   The lead-in repeats itself.
+    *   "Non-exhaustive" appears twice.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Replace lines 82-86 with:
+    > The specification must detail each area below that applies, and any area not listed that a screen or behavior in the specification depends on. A reviewer who fails a specification for an unlisted area names that screen or behavior. An area can be covered in any section; it does not need its own heading. The rules above apply whether or not their topic appears in this list.
 
-* **Affected Scope:** Lines 632–634; 1409–1478; 1499–1510; brief in-scope goals
-* **Discrepancy Description:** The test setup is incomplete:
-  * the test connection-string override could fall back to the developer database;
-  * package versions are not pinned;
-  * the fixture, collection, and reset contract is undefined;
-  * there is no access to internal types;
-  * test keys are not listed;
-  * testing is not part of the scope.
+### [R2-4] [`comprehension`, `style`] - Severity: Major (reopened from round 1, Issue 4)
+*   **Affected Scope:** [Lines 121-122](docs/ui_specification_standard.md#L121-L122)
+*   **Raw ids:** comprehension-2-4, style-2-N6
+*   **Discrepancy Description:**
+    *   "Code it references" excludes the search that a "does not exist" claim needs, because such a claim references no code.
+    *   The sentence can also be read two ways.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Replace the first sentence with: "This standard reviews the written specification. Reviewers read the codebase only to check the Reuse Rule."
 
-  (C-M9)
-* **Rationale:** The tests could delete data in the developer's database.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** NFR. Add a Testing item:
-    > "Domain unit tests cover policy validation and price rounding. Integration tests against LocalDB cover matching, the procedure's error table, the endpoints, and permissions. CI therefore runs on Windows (decision 13)."
-  * **Location:** Decisions table. Add row 13: "Test database: LocalDB, because matching runs in SQL (decision 6)."
-  * **Location:** Files 59 and 62. Pin these packages:
-    * `xunit.v3` 3.x (exact version at implementation time)
-    * `xunit.runner.visualstudio`
-    * `Microsoft.NET.Test.Sdk`
-    * `coverlet.collector`
-    * `Microsoft.AspNetCore.Mvc.Testing` 10.0.15
+### [R2-5] [`comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 54-56](docs/ui_specification_standard.md#L54-L56)
+*   **Discrepancy Description:** The rule doesn't say whether a reviewer must look for duplicates of a new item when the spec makes no claim about it. It also doesn't say what "unverified" means for the verdict.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Justification:*** "Cannot pass until verified" follows from round 1's "unverified, not passed". **Check this one**, because it sets policy. If you'd rather a spec pass with a caveat, say so.
+*   ***Proposed Edit:*** Replace the last two sentences of the Reuse Rule with:
+    > Reviewers with codebase access search for an existing equivalent of every new component, color, spacing value, and typography style, and verify every claim that one "does not exist." Reviewers without codebase access record the Reuse Rule as unverified. A specification cannot pass this standard until a reviewer with access has verified it.
 
-    Also add `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
-  * **Location:** File 63.
-    * All integration tests share one `[Collection("Database")]`, which runs them one at a time.
-    * `ResetAsync` runs before each test and deletes rows in this order: Quotes, PricingRules, PricingRuleSetVersions, Policies.
-    * It then turns `SYSTEM_VERSIONING` off, clears `PoliciesHistory`, and turns versioning back on.
-  * **Location:** File 64.
-    * Override with `builder.UseSetting("ConnectionStrings:Database", fixture.ConnectionString)`.
-    * After the host builds, assert that the resolved database name starts with `Goldfish_Test_`.
-    * Tests resolve services from `factory.Services.CreateScope()`.
-    * Each of the keys `full`, `quoter`, and `reader` is a fixed 32-byte test value. Its SHA-256 hash is computed in the factory, not stored. `reader` has `policies:read`, `quotes:read`, and `pricing:read`.
-  * **Location:** Add file 72, `src/Goldfish.Infrastructure/Goldfish.Infrastructure.csproj` (Modify): add `InternalsVisibleTo Goldfish.IntegrationTests`.
+### [R2-6] [`comprehension`, `structural`] - Severity: Major
+*   **Affected Scope:** [Line 6](docs/ui_specification_standard.md#L6)
+*   **Raw ids:** comprehension-2-7, structural-2-4 (part)
+*   **Discrepancy Description:** `feature-spec-standard.md` has no link, and no file by that name exists next to this one.
+*   ***AI Suggestion:*** ESCALATE (same as round 1, Issue 10)
+*   ***Justification:*** The link depends on where you decide the file lives. This finding stays open until you decide.
 
-### [Issue 12] [`egm-implementation-readiness`, `egm-codebase-details`] - Severity: Major
+### [R2-7] [`style`, `comprehension`, `structural`] - Severity: Nit
+*   **Affected Scope:** [Lines 101-103](docs/ui_specification_standard.md#L101-L103)
+*   **Discrepancy Description:**
+    *   Stating 2.5.8 as a flat 24 px minimum ignores the criterion's exceptions.
+    *   "Unless stated otherwise" needs no reason, while the contrast override does.
+    *   2.5.8 has no link.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "including target sizes (WCAG 2.2 [success criterion 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html): at least 24 by 24 CSS pixels, or one of its listed exceptions, unless the specification states a different target and why)".
 
-* **Affected Scope:** Lines 791–1559
-* **Discrepancy Description:** The plan has no phases or checkpoints. (C-M10)
-* **Rationale:** Some changes break the build until later files land.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** The start of the Detailed Implementation Plan. Add a "Phases" table. Each phase ends with `dotnet build` and the test command listed.
+### [R2-8] [`style`] - Severity: Nit
+*   **Discrepancy Description:** "The specification says so" (line 50) and "the specification states" (line 95) use plain present tense, while every other requirement uses "must".
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Change them to "must say so" and "must state".
 
-    | Phase | Contents | Files | Exit check |
-    | --- | --- | --- | --- |
-    | 1 | Error types | 1, 2, 44, 45 | Build |
-    | 2 | Policies | 3–6, 14–18, 27, 28, 36, 46 (policy actions), 59, 60, and the policy part of the migration | Domain tests |
-    | 3 | Pricing schema and procedure | 9, 30–35, 63, 65, 66 | Procedure tests |
-    | 4 | Matching and quotes | 7, 8, 10–12, 19, 21–26, 29, 37–40, 46 (quote action), 47, 48, 61, 67, 68, 70 | All tests |
-    | 5 | Authentication | 41–43, 49–52, 64 | All tests |
-    | 6 | Operations | 53–58, 62, 69, 71, 72 | All tests and a manual check |
+### [R2-9] [`style`] - Severity: Nit
+*   **Discrepancy Description:** As a verb at lines 30, 33 and 107, "State whether" reads like the noun "state".
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Change "State whether" to "Say whether" and "State the message shown" to "Give the message shown".
 
-    The migration is generated once, in phase 3, after files 27–33 exist. Phase 2 adds no migration.
+### [R2-10] [`comprehension`] - Severity: Nit
+*   **Discrepancy Description:** With no design system, it isn't clear whether shared logic and layout primitives must still be named (line 50).
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "If the product has no design system, the specification must say so and still name the shared logic and layout primitives it uses."
 
-### [Issue 13] [`egm-style`, `egm-implementation-readiness`, `egm-codebase-details`] - Severity: Major
+### [R2-11] [`comprehension`] - Severity: Nit
+*   **Discrepancy Description:** Telemetry's "if any" doesn't say whether "none" must be written.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "*   **Analytics & Telemetry**: Events emitted and their names, or "none"."
 
-* **Affected Scope:** Lines 1139–1140; 1563–1583
-* **Discrepancy Description:** The verification gates can't be run as written:
-  * no coverage tool;
-  * `TreatWarningsAsErrors` is not added;
-  * `ef database update` targets the developer database;
-  * the CI pipeline doesn't exist;
-  * the manual check has no step that creates a policy.
+### [R2-12] [`structural`] - Severity: Nit
+*   **Discrepancy Description:** Line 8 runs two section names together without formatting.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "(for example, **State & Data** here and **Proposed Architecture** there)".
 
-  (C-M11)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid. (The tool manifest part is contested in Issue 26.)
-* ***Proposed Edit:***
-  * **Location:** Migrations bullet. Use `dotnet ef database update --connection "Server=(localdb)\MSSQLLocalDB;Database=Goldfish_Verify;Trusted_Connection=True;TrustServerCertificate=True"`, using the dotnet-ef 10.0.15 pinned in `dotnet-tools.json` (`dotnet tool restore`).
-  * **Location:** Coverage. Run `dotnet test --collect "XPlat Code Coverage"` (coverlet.collector). The 90% line coverage applies to `Policy` and `Quote` in `Goldfish.Domain`, and is checked manually from the report.
-  * **Location:** Integration tests. Replace "CI agents must be Windows" with "Integration tests need Windows with LocalDB; any CI pipeline added later must use Windows agents."
-  * **Location:** Manual. Add steps:
-    * "`POST /api/policies` with the `full` dev key (Commercial, 2,000,000, 1,234.57)."
-    * "Run `db/tickets/0001-initial-rule-set.sql` with sqlcmd as the developer's Windows login."
-  * **Location:** Static analysis. Rename it "Compiler warnings".
+### [R2-13] [`style`] - Severity: Nit
+*   **Discrepancy Description:** "Not a follow-up task" (line 60) is a slogan.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** It states the purpose of the rule in eight words.
 
-### [Issue 14] [`egm-design`, `egm-style`, `egm-structural`, `egm-zoom-out`] - Severity: Major
+### [R2-14] [`style`] - Severity: Nit
+*   **Discrepancy Description:** The URL-persistence rationale (lines 98-99) assumes a design choice.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** The clause asks the spec to say what is persisted and why it matters. It doesn't require persistence.
 
-* **Affected Scope:** Lines 53–55; 298–307; 483–485; 592–615
-* **Discrepancy Description:** The no-delay requirement is worded inconsistently, and Alternative J has no real reason for rejection. (C-M12)
-* **Rationale:** G2 and the decision not to cache both rest on this requirement.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** The author has decided that no pricing change is tied to a time (author decision 4).
-* ***Proposed Edit:***
-  * **Location:** Lines 53–55. Replace with:
-    > "**Stale rules are not acceptable.** Once a change is approved and its script commits, the next quote must use it. A delay of even a few seconds is unacceptable to the business. That rules out holding rules in memory and refreshing them on a timer."
-  * **Location:** Line 614 (Alternative K). Keep "unacceptable".
-  * **Location:** Lines 305–307. Replace with: "No pricing change is tied to a date or time. A change applies when its approved script runs."
-  * **Location:** Accepted risks. Delete "Manual timing for scheduled changes".
-  * **Location:** Alternative J. Replace the reason with:
-    > "Rejected by author: no pricing change is tied to a date or time, so effective dates would add a column, a clock comparison, and a scheduled-versions view for no current need. If one appears, an approved script can be run as a scheduled job without schema changes."
-  * **Location:** Decisions table, row 4. Add "(no pricing change is tied to a time)".
+### [R2-15] [`structural`] - Severity: Nit
+*   **Discrepancy Description:** Label styles are inconsistent ("and" vs "&", lowercase vs capitalised), and the Out of Scope section has no counterpart in the sibling standard.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** Both are cosmetic. These are the same as round 1 Issues 17 and 18, which were declined, so they are settled.
 
-### [Issue 15] [`egm-comprehension`, `egm-zoom-out`] - Severity: Major
+---
 
-* **Affected Scope:** Lines 12–15; 303–307; 390; 753; 1358–1368
-* **Discrepancy Description:** The document never says who writes, approves, and runs ticket scripts, or with which login and tool. (C-M15)
-* **Rationale:** The main workflow can't be followed from start to finish.
-* ***AI Suggestion:*** ESCALATE
-* ***Justification:*** The finding is valid, but the facts are outside every file the reviewers could read. Nothing in the conversation or the brief says who in your organization runs approved scripts, or how. Guessing would put an invented process into the design.
-* ***Proposed Edit:***
-  * **Location:** After "Publishing a version", add a "Publishing workflow" paragraph built from your answers to three questions:
-    1. Who drafts the script? (An analyst? A developer?)
-    2. Who runs it after approval? (A DBA? A pipeline?)
-    3. Which tool runs it, and how does that person or pipeline get the `goldfish_pricing_publisher` credentials?
+# Round 3
 
-### [Issue 16] [`egm-structural`, `egm-design`] - Severity: Major
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-145)
+**Reviewers:** structural (completed: 0 Major, 7 Nit), style (completed: 3 Major, 7 Nit), comprehension (completed: 6 Major, 6 Nit)
+**After merging duplicates and setting aside settled findings:** 6 open Major, 8 Nit, 0 Blocker. Round 3 is **not clean**.
 
-* **Affected Scope:** Lines 670–681 (Alternative Q)
-* **Discrepancy Description:** Ledger tables would close the db_owner risk, but the spec never says why the weaker permission-based option is enough. (C-M13, part)
-* **Rationale:** The alternative is rejected without a weighed trade-off.
-* ***AI Suggestion:*** ESCALATE
-* ***Justification:*** The deciding fact is outside every file: which SQL Server version and edition production runs. Ledger tables need SQL Server 2022+ or Azure SQL. If production meets that, the rejection reason changes.
-* ***Proposed Edit:***
-  * **Location:** Alternative Q. Add a trade-off sentence based on your answer.
-    * **If production is older than SQL Server 2022:** "Ledger tables are not available on the production SQL Server version."
-    * **If production is 2022 or newer:** "Permissions were chosen because ledger tables can never be purged, which would block a future retention policy."
+**Settled findings raised again (not reopened):**
+*   URL persistence in State & Data (comprehension-3-4 as a Major, style-3-N3): this is the same scope and issue as R2-14, which was declined.
+*   Label style and ampersands (structural-3-1 to 3-3): these are the same as round 1 Issues 17-18 and R2-15.
 
-### [Issue 17] [`egm-design`, `egm-style`] - Severity: Nit (raised to the user because it needs a fact)
+You can overrule either one if you want them changed.
 
-* **Affected Scope:** Lines 195; 645–647
-* **Discrepancy Description:** Nobody has confirmed banker's rounding with finance. (Stage 7 N14)
-* ***AI Suggestion:*** ESCALATE
-* ***Justification:*** The author chose the rounding mode in this session. Whether finance agreed is not recorded anywhere a reviewer could read.
-* ***Proposed Edit:***
-  * **Location:** Open Questions. Add "**Rounding sign-off**: has finance confirmed banker's rounding (ToEven) for quoted prices?" Or record who confirmed it, if someone has.
+**Churn check:** R3-1, R3-2 and R3-6 sit on text that round 2 added. Undoing round 2 would bring back the round 2 problems, so this is not churn. The open findings are getting narrower each round: they are now about wording, not missing rules.
 
-### [Issue 18] [`egm-structural`, `egm-design`, `egm-style`, `egm-comprehension`] - Severity: Major
+## Prioritized Findings & AI Suggestions
 
-* **Affected Scope:** Lines 509–720 (Alternatives); 769–775
-* **Discrepancy Description:** The link to the brief is broken, and the URLs are not written as links. Several "Rejected by author" entries give no trade-off. Alternative T bundles three options. The alternative "most specific match wins" is missing. "Rejected in review" is never explained. (C-M13, except Q)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** Additional Resources.
-    * `[Concept brief](../../concepts_brief.md)`
-    * `[EF Core temporal tables](https://learn.microsoft.com/ef/core/providers/sql-server/temporal-tables)`
-    * `[Ownership chains](https://learn.microsoft.com/sql/relational-databases/security/ownership-chains)`
-  * **Location:** The top of Alternatives. Add:
-    > "'Rejected in review' means rejected by the multi-reviewer analysis recorded in the [concept brief](../../concepts_brief.md)."
-  * **Location:** Alternatives G, H, and L. Add one sentence each:
-    * **G:** "Full copies keep each quote reproducible from one version id."
-    * **H:** "Lowest-wins matches how analysts already say 'priority 1'."
-    * **L:** "Two condition fields don't justify a generic condition model."
-  * **Location:** Alternative T. Split it into T1 (fixed base), T2 (base in the request), and T3 (external system), each with its own reason.
-  * **Location:** Add Alternative W, "Winner chosen by most-specific match, highest result, or newest rule".
-    * Pros: no priority numbers to maintain.
-    * Cons: "most specific" has no single definition, so ties need a hidden rule; highest-result raises prices whenever rules overlap; newest-rule depends on insert order.
-    * Reason: Rejected by author in favor of an explicit priority number.
+### [R3-1] [`style`, `comprehension`, `structural`] - Severity: Major
+*   **Affected Scope:** [Lines 33-36](docs/ui_specification_standard.md#L33-L36), [Lines 40-43](docs/ui_specification_standard.md#L40-L43) (Scope and Applicability, State Coverage)
+*   **Raw ids:** style-3-M1, style-3-M2, style-3-N7, comprehension-3-7, comprehension-3-8, structural-3-7
+*   **Discrepancy Description:**
+    *   "Applies", "can occur", "cannot occur" and "reachable" are used as if they were the same test. "Reachable" also means keyboard reachability at line 85.
+    *   The reviewer's list ("case, item, or area") doesn't match the N/A list ("case, sub-case, or item").
+    *   The paragraph switches between talking about the reviewer and giving orders to the author.
+    *   "Nit" is never defined.
+    *   It isn't clear whether one N/A mark can cover several components.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:***
+    *   Replace lines 33-36 with:
+        > A case, item, or area *applies* if a user can encounter it as a result of this work. The reviewer decides whether something applies. The author marks each listed case, item, or area that does not apply as "N/A", with a one-line reason; one mark can cover several screens or components. A missing N/A mark on something that does not apply is not grounds for failure.
+    *   Replace lines 40-43 with: "Everything in scope must define its behavior in each state below that applies to it. The specification fails this standard if any case below that applies is undefined:"
 
-### [Issue 19] [`egm-structural`, `egm-style`] - Severity: Major
+### [R3-2] [`style`, `comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 63-76](docs/ui_specification_standard.md#L63-L76) (The Reuse Rule)
+*   **Raw ids:** style-3-M3, comprehension-3-3, style-3-N5
+*   **Discrepancy Description:**
+    *   The test for a duplicate is buried in brackets, inside a 60-word sentence.
+    *   The duplication test covers only "component, color, spacing value, or typography style". A new hook, layout primitive or other kind of token (radius, shadow) escapes it.
+    *   The "it" in "has verified it" is unclear.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Replace the paragraph from "It fails this standard if" to the end with:
+    > A new component, token, hook, or layout primitive *duplicates* an existing one if it serves the same purpose, whatever its exact values; the reviewer decides. The specification fails this standard if it introduces a duplicate without a concrete reason the existing one can neither be used as it is nor be extended. Reviewers with codebase access search for an existing equivalent of every new component, token, hook, and layout primitive, and verify every claim that one "does not exist." Reviewers without codebase access record the Reuse Rule as unverified. A specification cannot pass this standard until a reviewer with codebase access has verified the Reuse Rule.
 
-* **Affected Scope:** Lines 305–307; 394–395; 471–485; 754–765
-* **Discrepancy Description:** Risks are spread across four places, and some have no mitigation. (C-M14)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** Move "Accepted risks" out of the Technical Plan into a new H2 section, "Risks & Mitigations", placed after Non-Functional Requirements.
-  * **Location:** Format. Each risk gets a type (correctness, security, operations), a mitigation, and an "Accepted because…" line.
-  * **Location:** The risks are:
-    * large typos (mitigated by the dry-run diff);
-    * privileged logins;
-    * the migrator login;
-    * unreviewed base-price edits (mitigated by ModifiedBy and the history table);
-    * running the `Down` migration in production.
-  * **Location:** Permissions and Rollback. Replace the inline copies with "see Risks & Mitigations".
+### [R3-3] [`comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 30-31](docs/ui_specification_standard.md#L30-L31), against [Lines 63-65](docs/ui_specification_standard.md#L63-L65)
+*   **Discrepancy Description:** "Needs no entry" contradicts the Reuse Rule, which says to name every existing component used, with its path.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "A reused component that the work does not change keeps its existing behavior. It needs no State Coverage or Accessibility entry, but the Reuse Rule still applies to it."
 
-### [Issue 20] [`egm-codebase-details`, `egm-style`] - Severity: Major
+### [R3-4] [`comprehension`] - Severity: Major
+*   **Affected Scope:** [Lines 25-28](docs/ui_specification_standard.md#L25-L28)
+*   **Discrepancy Description:** "Parts" of an existing screen is undefined, and it isn't clear whether a changed component is in scope as a whole. Changing one button might pull in the whole screen's landmarks and focus.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** Replace those two list items with:
+    > *   on an existing screen, the controls and regions the work adds or changes, plus any screen-wide behavior they alter (for example, tab order or heading levels);
+    > *   each existing component whose behavior, appearance, or copy the work changes, as a whole.
 
-* **Affected Scope:** Lines 1102–1133
-* **Discrepancy Description:** Nothing generates `PricingRules.Id`, so the procedure's INSERT fails. (C-M16)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** Data model, PricingRules Id. Set the rule to "Primary key, default `NEWSEQUENTIALID()`".
-  * **Location:** File 33. Add `Property(r => r.Id).HasDefaultValueSql("NEWSEQUENTIALID()")`.
+### [R3-5] [`comprehension`] - Severity: Major (reopened: R2-3, a second time)
+*   **Affected Scope:** [Lines 100-103](docs/ui_specification_standard.md#L100-L103)
+*   **Discrepancy Description:** "Depends on" has no test, and it isn't clear how much detail an area missing from the list needs.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Justification:*** This is the third attempt at this sentence. If round 4 raises it again, I'll treat it as churn and ask you to accept the reviewer's discretion as a deliberate judgment call.
+*   ***Proposed Edit:*** Replace the first two sentences with:
+    > The specification must detail each area below that applies. It must also detail any unlisted area without which a behavior it describes cannot be built (for example, offline behavior for a screen that must work offline, or print layout for a page users print), to the same level of detail. A reviewer who fails a specification for an unlisted area names both the behavior and the missing area.
 
-### [Issue 21] [`egm-design`, `egm-zoom-out`] - Severity: Major
+### [R3-6] [`comprehension`, `structural`] - Severity: Major
+*   **Affected Scope:** [Line 6](docs/ui_specification_standard.md#L6)
+*   **Discrepancy Description:** `feature-spec-standard.md` has no link (the same issue as Issue 10 and R2-6).
+*   ***AI Suggestion:*** ESCALATE (still open)
+*   ***Justification:*** **This finding alone will keep every later round from counting as clean.** I need to know where the standard will live, or a path to link to.
 
-* **Affected Scope:** Lines 114–120; 280–296; 1090
-* **Discrepancy Description:** The data-model table leaves out the `PolicyId` index that file 29 already plans, and there is no storage estimate. (C-M17)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Partly valid. The index already exists in file 29; only the table leaves it out.
-* ***Proposed Edit:***
-  * **Location:** Under the Quotes table. Add:
-    > "Indexes: `PolicyId`. At the assumed tens of quotes per second, Quotes grows by roughly 30–300 million rows a year (about 10–90 GB before indexes). Archiving is deferred until retention is decided."
+### [R3-7] [`style`, `comprehension`] - Severity: Nit
+*   **Affected Scope:** [Lines 140-145](docs/ui_specification_standard.md#L140-L145)
+*   **Discrepancy Description:**
+    *   "This standard reviews" names the wrong actor; reviewers do the reviewing.
+    *   The "It" that follows is unclear.
+    *   Reading code only for the Reuse Rule rules out checking whether a state applies, such as permission denied.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:***
+    > Reviewers assess the written specification. They may read the codebase to check the Reuse Rule and to decide whether a case applies. This standard does not cover rendered screens, pixel accuracy, or visual taste; those require running the application and human review.
 
-### [Issue 22] [`egm-style`, `egm-comprehension`, `egm-design`] - Severity: Major
+### [R3-8] [`style`] - Severity: Nit
+*   **Affected Scope:** [Lines 119-125](docs/ui_specification_standard.md#L119-L125)
+*   **Discrepancy Description:** A five-line bracket splits the Responsive Behavior bullet.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "Layout at each supported breakpoint (listed in the specification, or linked to where they are defined) and on touch devices, including what collapses or hides. Target sizes meet WCAG 2.2 [success criterion 2.5.8](…) (at least 24 by 24 CSS pixels, or one of its listed exceptions) unless the specification states a different target and why."
 
-* **Affected Scope:** Lines 22–23; 245; 271; 342–348; 369; 877–878; 1038
-* **Discrepancy Description:** Some wording could be implemented wrongly:
-  * the priority direction;
-  * "has started";
-  * the hedge on the no-match case;
-  * the collation claim (covered in Issue 4).
+### [R3-9] [`comprehension`] - Severity: Nit
+*   **Discrepancy Description:** "Placeholder text" (line 127) can be confused with the HTML `placeholder` attribute.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "Temporary copy is acceptable only when it is marked as temporary and states what the final text must say."
 
-  (C-M18)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** Line 22. Change to "the matching rule with the lowest priority number sets the price".
-  * **Location:** Line 369. Change to "that rule's priority number is larger than every other rule's".
-  * **Location:** Lines 342–344. Replace "which the catch-all requirement should make impossible" with "which can happen only if rule rows were written outside `pricing.PublishRuleSetVersion`, for example by a privileged login".
-  * **Location:** Lines 877–878 and 1038. Change "when no version has started" to "when no version has been published".
+### [R3-10] [`comprehension`] - Severity: Nit
+*   **Discrepancy Description:** When one section covers both standards (lines 8-10), it isn't clear whether it must meet both lists in full.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** End the sentence with "one section of the specification can satisfy both if it covers what each asks for."
 
-### [Issue 23] [`egm-implementation-readiness`, `egm-codebase-details`, `egm-style`] - Severity: Major
+### [R3-11] [`style`] - Severity: Nit
+*   **Discrepancy Description:** Line 22 is wordy.
+*   ***AI Suggestion:*** PROPOSE FIX
+*   ***Proposed Edit:*** "The rules below apply to the following, called "in scope" here:"
 
-* **Affected Scope:** Lines 793–796; 936; 1439–1440
-* **Discrepancy Description:** "Pinned exactly" contradicts "10.0.x", and the `SqlClient` reference is left undecided. (C-M19)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Valid.
-* ***Proposed Edit:***
-  * **Location:** Line 793. Change to:
-    > "Microsoft packages are pinned at 10.0.15, matching the existing EF Core references. Test-only packages are pinned to their latest stable versions at implementation time."
-  * **Location:** File 13. Pin `Microsoft.Extensions.Logging.Abstractions` at 10.0.15.
-  * **Location:** File 62. Add "`Microsoft.Data.SqlClient` comes through EF Core SqlServer; no separate reference."
+### [R3-12] [`style`] - Severity: Nit
+*   **Discrepancy Description:** Some instructions use the imperative ("Say whether", "Give") and others use "must".
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** The imperative is clear and was chosen in R2-9 to avoid the noun/verb clash with "State".
 
-### [Issue 24] [`egm-structural`, `egm-style`] - Severity: Nit
+### [R3-13] [`comprehension`] - Severity: Nit
+*   **Discrepancy Description:** "Any keyboard shortcuts" and "any bundle-size limits" don't say whether "none" must be written.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** The N/A rule in R3-1 covers this.
 
-* **Affected Scope:** Lines 7; 195–200; 249; 291; 401–406; 725; 767–789
-* **Discrepancy Description:** Structure. (C-N1)
-  * Additional Resources and Future Improvements are H3 headings.
-  * Horizontal rules are used inconsistently.
-  * Decision-table rows don't match the column header.
-  * Some data-model rows cover several columns.
-  * API error cells are uneven.
-  * There are no CUJs for "no key" or "no version yet".
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Cheap, and it helps readers.
-* ***Proposed Edit:***
-  * Promote both sections to H2, and use a horizontal rule before every H2.
-  * Rename the decisions column to "Topic".
-  * Split "PeriodStart, PeriodEnd" into separate rows, and give the Quotes snapshot columns their own rows with types.
-  * Write every API error cell as "status `Code`". Add 401 and 403 to each protected row.
-  * Add two short CUJs:
-    * CUJ 8: no key returns 401, and nothing is saved.
-    * CUJ 9: a quote before the first publish returns 503 `Pricing.NoActiveVersion`.
+### [R3-14] [`structural`] - Severity: Nit
+*   **Discrepancy Description:** The scope list has no bold labels, and the Requirements lead-in is a long paragraph unlike the sibling's.
+*   ***AI Suggestion:*** DECLINE
+*   ***Justification:*** These are cosmetic. The content of the lead-in is needed where it is.
 
-### [Issue 25] [`egm-design`, `egm-codebase-details`, `egm-implementation-readiness`, `egm-style`, `egm-zoom-out`] - Severity: Nit
+---
 
-* **Affected Scope:** Throughout
-* **Discrepancy Description:** Design accuracy, code conventions, and wording. (C-N2, C-N3, C-N4)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** Each fix is a small text change, and together they remove ambiguity an implementer would otherwise have to resolve.
-* ***Proposed Edit:***
-  * **Location:** Data model, Quotes.
-    * Add a composite foreign key on (VersionId, RuleId). This needs a unique index on PricingRules (VersionId, Id).
-    * Add a CHECK on `PolicyType`.
-    * Add the note "CreatedOnUtc and PublishedOnUtc are for the record only and come from different clocks; they are never compared."
-  * **Location:** G4. Change to "Explaining a past quote needs only the quote row and the immutable rule rows it references."
-  * **Location:** The decimal rule in file 4. Use "`decimal.Round(value, 2) != value` is rejected". Add "values above 9,999,999,999,999,999.99 are rejected as `Policy.InvalidCoverageLimit` or `InvalidBasePrice`".
-  * **Location:** Files 6, 8, 12, and 24. Use `CancellationToken cancellationToken = default`.
-  * **Location:** File 36. `GetByIdAsync` uses `AsNoTracking`. Add `GetForUpdateAsync`, which tracks the entity.
-  * **Location:** File 49. Remove `public partial class Program;`, which .NET 10 generates (ASP0027).
-  * **Location:** Files 28, 29, and 33. Name every CHECK constraint with the `CK_<Table>_<Rule>` pattern. Copy the UTC converter lambda inline. Add `ValueGeneratedNever` on Quotes.Id.
-  * **Location:** Files 30 and 31. Records use `string?` for PolicyType. Navigation: `PricingRuleSetVersionRecord.Rules`. Foreign key: `FK_PricingRules_Versions`.
-  * **Location:** File 55. Literal placeholders: `'CHG-0000'`, `'name@example'`.
-  * **Location:** File 57. Add the key one-liner: `[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))`.
-  * **Location:** File 63. Change "the test user is sysadmin" to "the developer's Windows login, which is sysadmin on LocalDB".
-  * **Location:** The Overview. Add: "Callers are internal systems, for example an underwriting portal, each with its own API key."
-  * **Location:** Throughout. Write "authorization policy" for the ASP.NET sense. Use `ApiKeys:Keys` in the Technical Plan. Use `WasCatchAll` in the SQL alias.
-  * **Location:** Wording.
-    * Line 39: "adds a release cycle to each change".
-    * Line 47: "values outside the limits listed in G6".
-    * Line 57: "Goldfish has no pricing support today."
-    * Lines 80 and 374: "a minimum not below the maximum".
-    * Line 84: "with the fields listed under Logging".
-    * Line 755: "no quote is priced or saved, and the error code names the cause".
-    * Delete "mature", "deliberately", "a safe default", "fast", "very", and "always" (lines 517, 1155, 1315, 1413, 1508–1509).
-    * Line 1308: "Enables authentication (G8)".
-  * **Location:** Technical Plan matching SQL. Keep the SQL, because the author kept SQL matching and the query is the contract. Trim the code-level calls in the API key section to the facts listed in Issue 7.
-  * **Location:** Quotes copies of VersionNumber, RuleName, and Multiplier. Keep them, and add the note "copied deliberately so a quote stays readable even if a privileged login alters rule rows (see Risks)".
+# Round 4
 
-### [Issue 26] [`egm-implementation-readiness`] - Severity: Major (part of Stage 9 M13)
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-150)
+**Reviewers:** structural (completed: 0 Major, 6 Nit), style (completed: 1 Major, 11 Nit), comprehension (completed: 4 Major, 5 Nit)
+**After merging duplicates and setting aside settled findings:** 4 open Major, 10 Nit, 0 Blocker. Round 4 is **not clean**.
 
-* **Affected Scope:** Lines 1563–1583
-* **Discrepancy Description:** "There is no `.config/dotnet-tools.json` for dotnet-ef 10.0.15."
-* ***AI Suggestion:*** CONTEST
-* ***Justification:*** The file [`dotnet-tools.json`](dotnet-tools.json) exists at the repository root and pins `dotnet-ef` 10.0.15. The reviewer could have read it. The plan only needs to mention it, which Issue 13 does.
-* ***Proposed Edit:*** No separate change. Covered by Issue 13.
+**Churn detected: R4-2.** It sits on the definition of "applies" that R3-1 added, and undoing R3-1 would resolve it, but would reopen R3-1. R4-3 is close to churn: R3-1 removed the word "sub-case", and R4-3 asks for sub-cases to be spelled out again. Under the loop rules, churn stops the loop for your decision.
+
+**Settled findings raised again (not reopened):**
+*   "&" versus "and" in headings, and lowercase bullet text: round 1 Issues 17-18, R2-15 and R3-14.
+*   The imperative "Say whether": R3-12.
+*   The "not a follow-up task" sentence: R2-13.
+*   The "Non-Exhaustive Examples" heading: R2-3 kept it to match the sibling standard.
+
+## Open findings and proposed fixes
+
+### [R4-1] [`style`, `comprehension`] - Severity: Major
+*   **Scope:** [Lines 29-30](docs/ui_specification_standard.md#L29-L30)
+*   **Discrepancy:** "Changes, as a whole" can be read as "only components changed as a whole".
+*   ***AI Suggestion:*** PROPOSE FIX. "each existing component whose behavior, appearance, or copy the work changes; the whole component is in scope, not only the changed part."
+
+### [R4-2] [`comprehension`] - Severity: Major (churn with R3-1)
+*   **Scope:** [Lines 36-37](docs/ui_specification_standard.md#L36-L37)
+*   **Discrepancy:** "Applies if a user can encounter it" doesn't fit areas that only engineers deal with: State & Data, Performance Budget, Telemetry and the Verification Plan. Read literally, those areas never apply.
+*   ***AI Suggestion:*** PROPOSE FIX. Add a second condition rather than reverting R3-1: "A case, item, or area *applies* if a user can encounter it as a result of this work, or if an engineer must decide it to build this work."
+
+### [R4-3] [`comprehension`, `style`] - Severity: Major (close to churn with R3-1)
+*   **Scope:** [Lines 44-46](docs/ui_specification_standard.md#L44-L46), [Lines 85-86](docs/ui_specification_standard.md#L85-L86)
+*   **Discrepancy:** It isn't clear whether pass/fail and N/A work per bullet (Focus) or per named case within it (focus on route change). Line 44 says "state" and line 46 says "case".
+*   ***AI Suggestion:*** PROPOSE FIX. Add to Scope and Applicability: "Each case named within a bullet (for example, 'initial load' under Loading, or 'route change' under Focus) is judged separately." Change line 44 to "each case below".
+
+### [R4-4] [`comprehension`, `style`] - Severity: Major
+*   **Scope:** [Lines 127-130](docs/ui_specification_standard.md#L127-L130)
+*   **Discrepancy:** The target-size sentence describes the built UI, not what the spec must state, and it sits outside the Accessibility Rule.
+*   ***AI Suggestion:*** PROPOSE FIX. Move it into the Visual bullet: "contrast and target-size targets (WCAG 2.2 AA, and target sizes of at least 24 by 24 CSS pixels per [success criterion 2.5.8](https://www.w3.org/TR/WCAG22/#target-size-minimum) or one of its listed exceptions, unless the specification states a different target and why), ..." Then delete it from Responsive Behavior. This link is the normative one (structural-4-5).
+
+### [R4-5] [`comprehension`, `structural`] - Severity: Major (fourth round)
+*   **Scope:** [Line 6](docs/ui_specification_standard.md#L6)
+*   **Discrepancy:** `feature-spec-standard.md` has no link.
+*   ***AI Suggestion:*** ESCALATE (still open). This needs your decision on where the file lives.
+
+### Nits I propose to fix (R4-6 to R4-15)
+*   **R4-6** (style N1, N2): change lines 44 and 62 so that "the specification" is the subject, as at line 85.
+*   **R4-7** (style N3, comprehension): change "The author marks" to "The author should mark", and add that "none" in Telemetry is an answer, not an N/A mark.
+*   **R4-8** (style N5): change line 8 to "Where both ask for overlapping content".
+*   **R4-9** (style N6): change "whatever its exact values" to "whatever its exact values or implementation".
+*   **R4-10** (style N9): change the Inventory to "Each screen and new or changed component, its place in the hierarchy, and whether it is reused or new."
+*   **R4-11** (style N10): rename the last heading to "Limits of This Standard" so it doesn't clash with "in scope". Change "may read the codebase to check" to "read the codebase to verify the Reuse Rule, and may read it to decide whether a case applies".
+*   **R4-12** (style N11): change the closing to "those require running the application, and visual taste requires human review."
+*   **R4-13** (comprehension): a reviewer without codebase access returns the verdict "incomplete".
+*   **R4-14** (comprehension): change "to the same level" to "in enough detail to build that behavior".
+*   **R4-15** (structural): line 33 becomes "needs no definition under the State Coverage Rule or the Accessibility Rule". Lines 7-8 name the sibling's sections exactly: goals and non-goals, risks and mitigations.
+
+### Nits declined
+*   **R4-16** (comprehension): whether "applies" also governs the feature-spec standard. Declined, because that standard's own rules govern its own areas.
+
+---
+
+# Round 5 (cap reached)
+
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-159)
+**Reviewers:** structural (completed: 0 Major, 5 Nit), style (completed: 2 Major, 8 Nit), comprehension (completed: 6 Major, 6 Nit)
+**After merging duplicates and setting aside settled findings:** 6 open Major, about 12 Nit, 0 Blocker. Round 5 is **not clean**.
+
+**The loop did not converge.** None of the 5 rounds was clean. Structural reported no Majors in rounds 2-5, and style's Majors fell from 4 to 2. Comprehension found 4-7 Majors every round. Most of them landed on text that the previous round's fix had added.
+
+**Churn:** R5-1, R5-2 and R5-6 sit on text added in round 4 (R4-4, R4-13 and R4-7). Undoing those fixes would resolve them, but would bring back the round 4 problems. R5-3 and R5-4 sit on the scope text from rounds 3-4.
+
+**The link finding is now a Nit.** Both structural and comprehension rated the unlinked `feature-spec-standard.md` a Nit this round. It is still unresolved and waiting for your decision (escalated since round 1, Issue 10).
+
+## Open findings by severity
+
+### Major
+*   **R5-1** [`style`, `comprehension`], lines 101-107, Visual: it is unclear whether "unless the specification states a different target" covers contrast, target size or both, and whether a lower target is allowed. Listing 2.5.8 next to "AA" wrongly suggests it isn't part of AA.
+    *   *Proposed fix:* "contrast and target sizes that meet WCAG 2.2 AA (target sizes per success criterion 2.5.8: at least 24 by 24 CSS pixels, or one of its listed exceptions). A specification may set a different target for either only by stating it and why."
+*   **R5-2** [`style`, `comprehension`], lines 83-85: the verdict "incomplete" is undefined, and nothing says which verdict wins when rules disagree.
+    *   *Proposed fix:* in Limits, "A review returns one verdict: *fail* if any rule fails, otherwise *incomplete* if the Reuse Rule is unverified, otherwise *pass*."
+*   **R5-3** [`comprehension`], lines 30-31: it is unclear whether giving an existing component a new prop or label counts as "changing" it.
+    *   *Proposed fix:* "changes" means changing the component's own source. A new configuration at a call site is covered by R5-4.
+*   **R5-4** [`comprehension`], lines 33-35: when an unchanged reused component sits on an in-scope screen, it is unclear who defines its copy, its states there, and its place in the tab order.
+    *   *Proposed fix:* "The exemption covers the component's internals. How it appears on an in-scope screen, including the copy passed to it, its states there and its place in tab order, is in scope."
+*   **R5-5** [`comprehension`], lines 126-130: nothing says what a reviewer should do when they can't open linked mockups.
+    *   *Proposed fix:* "Linked mockups must be openable by the reviewer; if they are not, the reviewer returns *incomplete*."
+*   **R5-6** [`comprehension`], lines 147-148: "'None' is an answer" conflicts with the rule that the reviewer decides what applies.
+    *   *Proposed fix:* "This area always applies; if no events are emitted, the specification states 'none'."
+
+### Nit (main ones)
+*   The link to `feature-spec-standard.md` (escalated, open).
+*   A double "detail" in the Requirements lead-in (lines 113-114).
+*   "They read the codebase" in Limits overstates the rule, because some reviewers have no codebase access.
+*   "Decide it" (line 38) is unclear.
+*   The Inventory doesn't say how to label a changed existing component.
+*   It is unclear whether wireframes, as well as mockups, need normative labelling.
+*   It is unclear whether design tokens are listed one by one or as a token file.
+*   It is unclear whether sub-items within a Requirements area are judged separately.
+*   Settled and not reopened: "&" versus "and", label casing, the imperative "Say whether", the "follow-up task" sentence, and URL persistence.
+
+---
+
+# Round 6 (past the cap)
+
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-169)
+**Reviewers:** structural (completed: 2 Major, 7 Nit), style (completed: 2 Major, 9 Nit), comprehension (completed: 3 Major, 8 Nit)
+**After merging duplicates and setting aside settled findings:** 4 open Major, about 10 Nit, 0 Blocker. Round 6 is **not clean**.
+
+**Churn:** all four Majors sit on text that round 5 added. R6-1 and R6-2 are defects I introduced: a misdirected pronoun, and verdict rules scattered across the document. Undoing R5-2 would remove them, but the "incomplete" verdict would become undefined again.
+
+## Open findings and proposed fixes
+
+### Major
+*   **R6-1** [`structural`, `style`, `comprehension`], lines 162-164: "read it" grammatically refers to the written spec, not the codebase.
+    *   *Proposed fix:* name "the codebase" explicitly. Say that codebase evidence may inform the Reuse Rule and decisions about whether something applies. It also counts when the codebase contradicts something the spec claims about existing behavior.
+*   **R6-2** [`structural`, `style`], lines 89, 135-136, 164-166: the verdict rules are spread over three sections and sit under "Limits".
+    *   *Proposed fix:* add a new `## Verdicts` section after the Accessibility Rule, holding the fail/incomplete/pass order, every trigger for "incomplete", and the codebase-access rules. The Reuse Rule and Visual Reference keep only one-line pointers to it. Limits goes back to stating what the standard does not cover.
+*   **R6-3** [`comprehension`], lines 84-88: "unverified" covers the whole Reuse Rule, although missing source paths or a missing reason for a declared duplicate can be seen from the text alone.
+    *   *Proposed fix:* "unverified" covers only the checks that need the codebase (searching for equivalents and confirming "does not exist" claims). Failures visible in the text fail the spec regardless of access.
+*   **R6-4** [`comprehension`], lines 34-38: it is unclear whether "uses the table's default empty state" defines that case for a reused component.
+    *   *Proposed fix:* "Naming the component's existing behavior for a case (for example, 'the table's built-in empty message') defines that case."
+
+### Nits I propose to fix
+*   "Different contrast or target-size target" becomes "threshold".
+*   The circular "needed to build ... to build it" becomes "that a described behavior depends on".
+*   Add that one definition can cover several screens or components, parallel to the N/A rule.
+*   With no design system, tokens must still be named.
+*   Give the two rule lead-ins the same punctuation.
+*   Reflow the lines left short by earlier edits.
+*   The Inventory covers only in-scope items, plus the reused components that appear on in-scope screens.
+
+### Nits declined or settled
+*   The verdict across both standards: this standard governs only its own verdict.
+*   The burden of bringing a whole component into scope: this is the deliberate R4-1 decision.
+*   Detail level for blanket statements in Visual: the reviewer decides.
+*   Splitting the Visual bullet: cosmetic.
+*   Settled and not reopened: the heading "Non-Exhaustive Examples", "&" versus "and", casing, the imperative voice, URL persistence, and section order.
+*   The link to `feature-spec-standard.md`: escalated, still open (Nit).
+
+---
+
+# Round 7 (past the cap)
+
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-185)
+**Reviewers:** structural (completed: 0 Major, 6 Nit), style (completed: 1 Major, 9 Nit), comprehension (completed: 6 Major, 3 Nit)
+**After merging duplicates:** 7 Major, 0 Blocker. One of the Majors is the escalated link and one is a settled finding. Round 7 is **not clean**.
+
+Structural and style both passed the document. All of comprehension's Majors are new edge cases. Each one is a question about how much detail the spec needs, or a place where two verdict rules meet.
+
+## Open findings and proposed fixes
+
+### Major
+*   **R7-1** [`style`], lines 80-81: the rule for a product with no design system leaves out "components".
+    *   *Fix:* "still name the components, tokens, hooks, and layout primitives it uses". This also settles the hooks / shared-logic wording (style Nit 2).
+*   **R7-2** [`comprehension`, `structural`], line 6: `feature-spec-standard.md` has no link and does not exist under C:\Goldfish.
+    *   *ESCALATE:* this has been open since round 1 and needs your decision on where the file lives.
+*   **R7-3** [`comprehension`, `structural`], lines 173-179: it is unclear whether the verdict also covers the feature-spec standard. This is the same scope as the R6 Nit, which was declined and is therefore *settled*. It was raised again, now as a Major.
+    *   *Suggested overrule:* "This verdict covers both standards; a failure under `feature-spec-standard.md` is a *fail* here."
+*   **R7-4** [`comprehension`], lines 140-141 and 177-178: "linked files must be openable" reads as a required-area failure (*fail*), but Verdicts gives *incomplete*.
+    *   *Fix:* remove the sentence from Visual Reference. In Verdicts, write "if any file the specification links to cannot be opened".
+*   **R7-5** [`comprehension`], lines 89-95 and 177: a spec with no new items and no "does not exist" claims makes it unclear whether the codebase checks count as made.
+    *   *Fix:* add a third codebase check, "confirming that each named existing item exists at its stated path". Then every spec needs a reviewer with codebase access, which closes the "is a reused item really new?" gap too.
+*   **R7-6** [`comprehension`], lines 77-79: it is unclear whether every token is listed or just the token set.
+    *   *Fix:* "Tokens can be named by set (for example, the spacing scale and its source file)."
+*   **R7-7** [`comprehension`], lines 111-117: it is unclear whether "meets WCAG 2.2 AA" written as a blanket statement is enough.
+    *   *Fix (sets policy, please check):* "A blanket statement is enough for elements that use only existing tokens; give the values for each new color pair and each new target size." Treat 200% zoom the same way, with a blanket statement allowed unless the layout changes.
+
+### Nits I propose to fix
+*   Merge the two "can cover several" sentences.
+*   Drop the repeated Reuse check sentence from Verdicts.
+*   Split the Visual bullet.
+*   State "no action available" explicitly where there is no next step.
+*   Say that a changed token or hook brings its consumers on in-scope screens into scope.
+*   Rename the heading to "UI Requirements (Non-Exhaustive Examples)" so it doesn't clash with the sibling standard's heading.
+*   Move the "Analytics always applies" exception into the Requirements lead-in.
+
+### Settled, not reopened
+*   "&" versus "and", casing, the imperative voice, the "follow-up task" sentence, "visual taste", and discretionary use of the codebase (deliberate, like the other "reviewer decides" clauses).
+
+---
+
+# Round 8 (past the cap)
+
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-192)
+**Reviewers:** structural (completed: 1 Major, 6 Nit), style (completed: 2 Major, 9 Nit), comprehension (completed: 4 Major, 6 Nit)
+**After merging duplicates:** 6 Major, 0 Blocker. Round 8 is **not clean**.
+
+Comprehension's Major count went down again (6, 3, 6, 4 across rounds 5-8). All new Majors this round sit on text that round 7 added, so this is churn.
+
+## Open findings and proposed fixes
+
+### Major
+*   **R8-1** [`style`, `comprehension`], lines 33-34: the scope bullet for a changed token or hook is circular ("each in-scope screen and component that uses it"). It also covers tokens and hooks but not changed components.
+    *   *Fix (sets policy, please check):* "when the work changes an existing token, hook, or component, the parts of each screen that use it and whose appearance or behavior the change alters."
+*   **R8-2** [`comprehension`], lines 26-28, 39-41 and 142-144: "in-scope screen" is undefined for an existing screen that is only partly changed.
+    *   *Fix:* define it as "a screen with at least one in-scope part". The rules for reused components then apply only to reused components inside those parts.
+*   **R8-3** [`comprehension`], lines 119-122: two existing tokens used together for the first time can be read as either "only existing tokens" or "a new color pair".
+    *   *Fix:* "A color pair is new if the product does not already use that foreground and background together; give its values."
+*   **R8-4** [`comprehension`], lines 92-99: nothing says what happens when a named item is not at its stated path.
+    *   *Fix:* "A named item that does not exist at its stated path, or a 'does not exist' claim the search disproves, fails the Reuse Rule."
+*   **R8-5** [`style`]: some requirements use "must" and others use plain present tense (lines 73, 75, 135, 175).
+    *   *Fix:* use "must" for every binding requirement. Line 175 becomes a pointer to the Reuse Rule.
+*   **R8-6** [`structural`], lines 6 and 180: `feature-spec-standard.md` has no link.
+    *   *ESCALATE:* this has been open since round 1. Round 7 made it more pressing, because the single verdict now depends on that file.
+
+### Nits I propose to fix
+*   "it" in lines 39-41 becomes "the reused component".
+*   Remove the repeated "failure visible in the text alone" phrase.
+*   Change "Say whether" to "must state whether".
+*   Change "whatever" to "regardless of", and fix the wording of "neither … nor".
+*   Move the "one definition or N/A mark" sentence after the N/A sentences.
+*   Rename the heading to "UI Requirements (Non-Exhaustive)".
+
+### Declined or settled
+*   Bullet casing, "&" versus "and", and how defined terms are marked: cosmetic and settled.
+*   Anchor links for cross-references: cosmetic.
+*   The boundary of "internals", the definition of "design system", the test for an acceptable threshold reason, and links that need a login: each falls under "the reviewer decides". These are Nits and are not fixed.
+
+---
+
+# Round 9 (past the cap)
+
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-199)
+**Reviewers:** structural (completed: 1 Major, 6 Nit), style (completed: 0 Major, 9 Nit), comprehension (completed: 6 Major, 6 Nit)
+**Open Majors:** 7, with 0 Blocker. Round 9 is **not clean**.
+
+For the first time, structural and style raised no Majors of their own; structural's only Major is the escalated link. Comprehension has raised 3-7 new Majors every round since round 1. Each one finds a new edge case in policy or applicability. None of them comes back after it is fixed, but a new one always appears.
+
+## Open Majors and proposed fixes
+*   **R9-0** [`structural`], lines 6 and 188: `feature-spec-standard.md` has no link (the same as R8-6 and R7-2).
+    *   *ESCALATE:* this needs your decision on where the file lives.
+*   **R9-1** [`comprehension`], lines 15-19 against Verdicts: the Core Principle and Verdicts give two different tests for passing.
+    *   *Fix:* "The Core Principle states the intent; the rules and required areas below decide the verdict."
+*   **R9-2** [`comprehension`], lines 182-185: checking the spec's claims about existing behavior against the codebase is optional ("may"), so two reviewers with the same access can disagree.
+    *   *Policy (please check):* either make it "must" for reviewers with codebase access, or state that it is deliberately optional.
+*   **R9-3** [`comprehension`], line 191: "any file" leaves out web URLs and links that need a login.
+    *   *Fix:* "anything the specification links to, including web pages; a link that needs access the reviewer lacks counts as one that cannot be opened."
+*   **R9-4** [`comprehension`], lines 124-130: a new component that uses only existing color pairs and existing sizes fits neither branch, and "new target size" is undefined.
+    *   *Fix:* the single statement covers any element whose color pairs and target sizes the product already uses. "New" means a value the product does not already use. Give the contrast ratio for each new pair.
+*   **R9-5** [`comprehension`], lines 83-85 and 96-101: components from a package have no "source path in the repository".
+    *   *Fix:* "or, for a dependency, its package and import path".
+*   **R9-6** [`comprehension`], lines 48-56 and 187-190: it is unclear whether the applicability and N/A rules here also govern the feature-spec standard's areas.
+    *   *Policy (please check):* either they do, or that standard's own wording governs its areas and only the single verdict is shared.
+
+## Nits
+These are recorded but not proposed for fixing:
+*   "item" used in two senses;
+*   "&" versus "and" (settled);
+*   casing (settled);
+*   the "follow-up task" sentence (settled);
+*   "note" changed to "describe";
+*   the density of the Visual bullet;
+*   "in-scope screen" is defined but used only once;
+*   the boundary of "internals";
+*   "design system" is undefined;
+*   the test for a threshold reason;
+*   URL persistence (settled);
+*   the heading's drift from the sibling standard.
+
+---
+
+# Round 10 (past the cap)
+
+**Target:** `docs/ui_specification_standard.md` (full file, lines 1-207)
+**Reviewers:** structural (completed: 0 Major, 9 Nit), style (completed: 1 Major, 7 Nit), comprehension (completed: 6 Major, 6 Nit)
+**Open Majors:** 6 after merging duplicates (the threshold override was raised by both style and comprehension), with 0 Blocker. Round 10 is **not clean**.
+
+## Open Majors and proposed fixes
+*   **R10-1** [`style`, `comprehension`], lines 132-133: the threshold override accepts any reason, may lower AA, and its scope is unclear.
+    *   *Fix:* "A specification may set a stricter contrast or target-size threshold. A weaker one fails this standard unless the reviewer accepts a concrete reason for it."
+*   **R10-2** [`comprehension`], lines 49-51: "applies as a result of this work" can mean either newly reachable cases or every case in an in-scope part.
+    *   *Fix:* "every case that can occur in an in-scope part", plus one worked example for a changed existing screen.
+*   **R10-3** [`comprehension`], lines 84-90: the Reuse Rule's "it uses" has no limit.
+    *   *Fix:* "the existing ... it uses in in-scope parts". Shared logic counts only if the UI calls it directly.
+*   **R10-4** [`comprehension`], lines 92-106: an undeclared duplicate found by the search has no stated outcome.
+    *   *Fix:* "A duplicate the search finds fails the Reuse Rule unless the specification gives a concrete reason for it. A spec need not claim 'does not exist' for every new item."
+*   **R10-5** [`comprehension`], lines 126-131: a color pair "already used" doesn't take text size or role into account.
+    *   *Fix:* "already used for the same role (normal text, large text, or non-text UI)". The check falls under claims about existing behavior.
+*   **R10-6** [`comprehension`], lines 6 and 192: `feature-spec-standard.md` has no link. Structural now rates this as a Nit.
+    *   *ESCALATE:* this needs your decision on where the file lives.
+
+## Nits
+These are recorded and not fixed:
+*   layout primitives are missing from scope bullet 5;
+*   "in-scope screen" is defined but never used;
+*   the boundary of "internals";
+*   "primary task" is undefined;
+*   "design system" is undefined;
+*   URL persistence (settled);
+*   a skipped behavior-claim check does not trigger *incomplete*;
+*   "declared duplicate";
+*   "rule or required area" in the sibling standard;
+*   casing, "&" versus "and", and term markup (settled);
+*   the line wrap at line 87.
